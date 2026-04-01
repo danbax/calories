@@ -1,0 +1,786 @@
+[
+  {
+    "name": "Tomato / עגבניה",
+    "caloriesPer100g": 18,
+    "proteinPer100g": 0.9,
+    "carbsPer100g": 3.9,
+    "fatPer100g": 0.2,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "piece", "grams": 123 }, { "label": "cup", "grams": 180 }]
+  },
+  {
+    "name": "Cucumber / מלפפון",
+    "caloriesPer100g": 15,
+    "proteinPer100g": 0.7,
+    "carbsPer100g": 3.6,
+    "fatPer100g": 0.1,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "piece", "grams": 250 }, { "label": "cup", "grams": 104 }]
+  },
+  {
+    "name": "Red Bell Pepper / פלפל אדום",
+    "caloriesPer100g": 31,
+    "proteinPer100g": 1,
+    "carbsPer100g": 6,
+    "fatPer100g": 0.3,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "piece", "grams": 150 }, { "label": "cup", "grams": 149 }]
+  },
+  {
+    "name": "Carrot / גזר",
+    "caloriesPer100g": 41,
+    "proteinPer100g": 0.9,
+    "carbsPer100g": 9.6,
+    "fatPer100g": 0.2,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "piece", "grams": 72 }, { "label": "cup", "grams": 128 }]
+  },
+  {
+    "name": "Onion / בצל",
+    "caloriesPer100g": 40,
+    "proteinPer100g": 1.1,
+    "carbsPer100g": 9.3,
+    "fatPer100g": 0.1,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "piece", "grams": 110 }, { "label": "cup", "grams": 160 }]
+  },
+  {
+    "name": "Lettuce / חסה",
+    "caloriesPer100g": 15,
+    "proteinPer100g": 1.4,
+    "carbsPer100g": 2.9,
+    "fatPer100g": 0.2,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "cup", "grams": 55 }]
+  },
+  {
+    "name": "Broccoli / ברוקולי",
+    "caloriesPer100g": 34,
+    "proteinPer100g": 2.8,
+    "carbsPer100g": 6.6,
+    "fatPer100g": 0.4,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "cup", "grams": 91 }]
+  },
+  {
+    "name": "Cauliflower / כרובית",
+    "caloriesPer100g": 25,
+    "proteinPer100g": 1.9,
+    "carbsPer100g": 5,
+    "fatPer100g": 0.3,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "cup", "grams": 107 }]
+  },
+  {
+    "name": "Zucchini / קישוא",
+    "caloriesPer100g": 17,
+    "proteinPer100g": 1.2,
+    "carbsPer100g": 3.1,
+    "fatPer100g": 0.3,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "piece", "grams": 196 }, { "label": "cup", "grams": 124 }]
+  },
+  {
+    "name": "Eggplant / חציל",
+    "caloriesPer100g": 25,
+    "proteinPer100g": 1,
+    "carbsPer100g": 5.9,
+    "fatPer100g": 0.2,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "piece", "grams": 550 }, { "label": "cup", "grams": 99 }]
+  },
+  {
+    "name": "Sweet Potato / בטטה",
+    "caloriesPer100g": 86,
+    "proteinPer100g": 1.6,
+    "carbsPer100g": 20.1,
+    "fatPer100g": 0.1,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "piece", "grams": 130 }]
+  },
+  {
+    "name": "Potato / תפוח אדמה",
+    "caloriesPer100g": 77,
+    "proteinPer100g": 2,
+    "carbsPer100g": 17.6,
+    "fatPer100g": 0.1,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "piece", "grams": 173 }]
+  },
+  {
+    "name": "Corn / תירס",
+    "caloriesPer100g": 86,
+    "proteinPer100g": 3.3,
+    "carbsPer100g": 19,
+    "fatPer100g": 1.4,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "cup", "grams": 145 }, { "label": "tbsp", "grams": 10 }]
+  },
+  {
+    "name": "Peas / אפונה",
+    "caloriesPer100g": 81,
+    "proteinPer100g": 5.4,
+    "carbsPer100g": 14.5,
+    "fatPer100g": 0.4,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "cup", "grams": 145 }]
+  },
+  {
+    "name": "Chickpeas Cooked / חומוס מבושל",
+    "caloriesPer100g": 164,
+    "proteinPer100g": 8.9,
+    "carbsPer100g": 27.4,
+    "fatPer100g": 2.6,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "cup", "grams": 164 }, { "label": "tbsp", "grams": 10 }]
+  },
+  {
+    "name": "Lentils Cooked / עדשים מבושלות",
+    "caloriesPer100g": 116,
+    "proteinPer100g": 9,
+    "carbsPer100g": 20.1,
+    "fatPer100g": 0.4,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "cup", "grams": 198 }]
+  },
+  {
+    "name": "Black Beans Cooked / שעועית שחורה",
+    "caloriesPer100g": 132,
+    "proteinPer100g": 8.9,
+    "carbsPer100g": 23.7,
+    "fatPer100g": 0.5,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "cup", "grams": 172 }]
+  },
+  {
+    "name": "Apple / תפוח עץ",
+    "caloriesPer100g": 52,
+    "proteinPer100g": 0.3,
+    "carbsPer100g": 13.8,
+    "fatPer100g": 0.2,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "piece", "grams": 182 }]
+  },
+  {
+    "name": "Banana / בננה",
+    "caloriesPer100g": 89,
+    "proteinPer100g": 1.1,
+    "carbsPer100g": 22.8,
+    "fatPer100g": 0.3,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "piece", "grams": 118 }]
+  },
+  {
+    "name": "Orange / תפוז",
+    "caloriesPer100g": 47,
+    "proteinPer100g": 0.9,
+    "carbsPer100g": 11.8,
+    "fatPer100g": 0.1,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "piece", "grams": 131 }]
+  },
+  {
+    "name": "Grapes / ענבים",
+    "caloriesPer100g": 69,
+    "proteinPer100g": 0.7,
+    "carbsPer100g": 18.1,
+    "fatPer100g": 0.2,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "cup", "grams": 151 }]
+  },
+  {
+    "name": "Strawberries / תותים",
+    "caloriesPer100g": 32,
+    "proteinPer100g": 0.7,
+    "carbsPer100g": 7.7,
+    "fatPer100g": 0.3,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "cup", "grams": 152 }]
+  },
+  {
+    "name": "Avocado / אבוקדו",
+    "caloriesPer100g": 160,
+    "proteinPer100g": 2,
+    "carbsPer100g": 8.5,
+    "fatPer100g": 14.7,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "piece", "grams": 150 }, { "label": "tbsp", "grams": 15 }]
+  },
+  {
+    "name": "Dates / תמרים",
+    "caloriesPer100g": 282,
+    "proteinPer100g": 2.5,
+    "carbsPer100g": 75,
+    "fatPer100g": 0.4,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "piece", "grams": 8 }]
+  },
+  {
+    "name": "Chicken Breast / חזה עוף",
+    "caloriesPer100g": 165,
+    "proteinPer100g": 31,
+    "carbsPer100g": 0,
+    "fatPer100g": 3.6,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "piece", "grams": 120 }]
+  },
+  {
+    "name": "Chicken Thigh Cooked / פרגית",
+    "caloriesPer100g": 209,
+    "proteinPer100g": 26,
+    "carbsPer100g": 0,
+    "fatPer100g": 11,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "piece", "grams": 100 }]
+  },
+  {
+    "name": "Turkey Breast / הודו",
+    "caloriesPer100g": 135,
+    "proteinPer100g": 29,
+    "carbsPer100g": 0,
+    "fatPer100g": 1.5,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "slice", "grams": 25 }]
+  },
+  {
+    "name": "Beef Mince 10% / בשר טחון",
+    "caloriesPer100g": 217,
+    "proteinPer100g": 26,
+    "carbsPer100g": 0,
+    "fatPer100g": 12,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "piece", "grams": 120 }]
+  },
+  {
+    "name": "Salmon / סלמון",
+    "caloriesPer100g": 208,
+    "proteinPer100g": 20,
+    "carbsPer100g": 0,
+    "fatPer100g": 13,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "piece", "grams": 140 }]
+  },
+  {
+    "name": "Tuna in Water / טונה במים",
+    "caloriesPer100g": 116,
+    "proteinPer100g": 26,
+    "carbsPer100g": 0,
+    "fatPer100g": 0.8,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "can", "grams": 120 }, { "label": "tbsp", "grams": 15 }]
+  },
+  {
+    "name": "Egg / ביצה",
+    "caloriesPer100g": 143,
+    "proteinPer100g": 12.6,
+    "carbsPer100g": 0.7,
+    "fatPer100g": 9.5,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "piece", "grams": 50 }]
+  },
+  {
+    "name": "Egg White / חלבון ביצה",
+    "caloriesPer100g": 52,
+    "proteinPer100g": 10.9,
+    "carbsPer100g": 0.7,
+    "fatPer100g": 0.2,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "piece", "grams": 33 }]
+  },
+  {
+    "name": "Tofu / טופו",
+    "caloriesPer100g": 76,
+    "proteinPer100g": 8,
+    "carbsPer100g": 1.9,
+    "fatPer100g": 4.8,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "piece", "grams": 100 }]
+  },
+  {
+    "name": "Tempeh / טמפה",
+    "caloriesPer100g": 193,
+    "proteinPer100g": 20.3,
+    "carbsPer100g": 7.6,
+    "fatPer100g": 10.8,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "piece", "grams": 100 }]
+  },
+  {
+    "name": "Cottage Cheese 5% תנובה / קוטג 5%",
+    "caloriesPer100g": 98,
+    "proteinPer100g": 11,
+    "carbsPer100g": 3.4,
+    "fatPer100g": 5,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "tbsp", "grams": 20 }, { "label": "cup", "grams": 220 }]
+  },
+  {
+    "name": "Cottage Cheese 3% / קוטג 3%",
+    "caloriesPer100g": 82,
+    "proteinPer100g": 11,
+    "carbsPer100g": 3.5,
+    "fatPer100g": 3,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "tbsp", "grams": 20 }, { "label": "cup", "grams": 220 }]
+  },
+  {
+    "name": "Greek Yogurt 3% / יוגורט יווני 3%",
+    "caloriesPer100g": 97,
+    "proteinPer100g": 9,
+    "carbsPer100g": 4,
+    "fatPer100g": 4.1,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "cup", "grams": 245 }, { "label": "tbsp", "grams": 15 }]
+  },
+  {
+    "name": "Skyr / סקיר",
+    "caloriesPer100g": 63,
+    "proteinPer100g": 11,
+    "carbsPer100g": 4,
+    "fatPer100g": 0.2,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "cup", "grams": 150 }]
+  },
+  {
+    "name": "Labane 5% / לבנה 5%",
+    "caloriesPer100g": 110,
+    "proteinPer100g": 8,
+    "carbsPer100g": 4,
+    "fatPer100g": 7,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "tbsp", "grams": 20 }]
+  },
+  {
+    "name": "White Cheese 5% / גבינה לבנה 5%",
+    "caloriesPer100g": 100,
+    "proteinPer100g": 8.5,
+    "carbsPer100g": 4,
+    "fatPer100g": 5,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "tbsp", "grams": 20 }]
+  },
+  {
+    "name": "Mozzarella Light / מוצרלה לייט",
+    "caloriesPer100g": 254,
+    "proteinPer100g": 24,
+    "carbsPer100g": 3,
+    "fatPer100g": 17,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "slice", "grams": 25 }]
+  },
+  {
+    "name": "Yellow Cheese 28% / גבינה צהובה",
+    "caloriesPer100g": 356,
+    "proteinPer100g": 25,
+    "carbsPer100g": 1.5,
+    "fatPer100g": 27,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "slice", "grams": 25 }]
+  },
+  {
+    "name": "Milk 3% תנובה / חלב 3%",
+    "caloriesPer100g": 61,
+    "proteinPer100g": 3.2,
+    "carbsPer100g": 4.8,
+    "fatPer100g": 3.3,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "cup", "grams": 240 }, { "label": "tbsp", "grams": 15 }]
+  },
+  {
+    "name": "Milk 1% / חלב 1%",
+    "caloriesPer100g": 42,
+    "proteinPer100g": 3.4,
+    "carbsPer100g": 5,
+    "fatPer100g": 1,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "cup", "grams": 240 }]
+  },
+  {
+    "name": "Soy Milk Unsweetened / חלב סויה ללא סוכר",
+    "caloriesPer100g": 33,
+    "proteinPer100g": 3.3,
+    "carbsPer100g": 0.7,
+    "fatPer100g": 1.8,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "cup", "grams": 240 }, { "label": "tbsp", "grams": 15 }]
+  },
+  {
+    "name": "Oat Milk / חלב שיבולת שועל",
+    "caloriesPer100g": 46,
+    "proteinPer100g": 1,
+    "carbsPer100g": 6.7,
+    "fatPer100g": 1.5,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "cup", "grams": 240 }]
+  },
+  {
+    "name": "Whole Wheat Bread / לחם מחיטה מלאה",
+    "caloriesPer100g": 247,
+    "proteinPer100g": 13,
+    "carbsPer100g": 41,
+    "fatPer100g": 4.2,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "slice", "grams": 32 }]
+  },
+  {
+    "name": "Rye Bread / לחם שיפון",
+    "caloriesPer100g": 259,
+    "proteinPer100g": 8.5,
+    "carbsPer100g": 48,
+    "fatPer100g": 3.3,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "slice", "grams": 34 }]
+  },
+  {
+    "name": "Whole Wheat Pita / פיתה מלאה",
+    "caloriesPer100g": 275,
+    "proteinPer100g": 9.1,
+    "carbsPer100g": 54,
+    "fatPer100g": 1.2,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "piece", "grams": 70 }]
+  },
+  {
+    "name": "Pita White / פיתה לבנה",
+    "caloriesPer100g": 290,
+    "proteinPer100g": 8.6,
+    "carbsPer100g": 57,
+    "fatPer100g": 1.3,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "piece", "grams": 70 }]
+  },
+  {
+    "name": "Bagel Jerusalem / בייגלה ירושלמי",
+    "caloriesPer100g": 290,
+    "proteinPer100g": 9,
+    "carbsPer100g": 57,
+    "fatPer100g": 2.2,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "piece", "grams": 100 }]
+  },
+  {
+    "name": "Cooked White Rice / אורז לבן מבושל",
+    "caloriesPer100g": 130,
+    "proteinPer100g": 2.7,
+    "carbsPer100g": 28,
+    "fatPer100g": 0.3,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "cup", "grams": 158 }, { "label": "tbsp", "grams": 12 }]
+  },
+  {
+    "name": "Brown Rice Cooked / אורז מלא מבושל",
+    "caloriesPer100g": 111,
+    "proteinPer100g": 2.6,
+    "carbsPer100g": 23,
+    "fatPer100g": 0.9,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "cup", "grams": 195 }]
+  },
+  {
+    "name": "Couscous Cooked / קוסקוס מבושל",
+    "caloriesPer100g": 112,
+    "proteinPer100g": 3.8,
+    "carbsPer100g": 23.2,
+    "fatPer100g": 0.2,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "cup", "grams": 157 }]
+  },
+  {
+    "name": "Bulgur Cooked / בורגול מבושל",
+    "caloriesPer100g": 83,
+    "proteinPer100g": 3.1,
+    "carbsPer100g": 18.6,
+    "fatPer100g": 0.2,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "cup", "grams": 182 }]
+  },
+  {
+    "name": "Oats / שיבולת שועל",
+    "caloriesPer100g": 389,
+    "proteinPer100g": 16.9,
+    "carbsPer100g": 66.3,
+    "fatPer100g": 6.9,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "cup", "grams": 80 }, { "label": "tbsp", "grams": 8 }]
+  },
+  {
+    "name": "Cornflakes / קורנפלקס",
+    "caloriesPer100g": 357,
+    "proteinPer100g": 7.5,
+    "carbsPer100g": 84,
+    "fatPer100g": 0.4,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "cup", "grams": 28 }]
+  },
+  {
+    "name": "Granola / גרנולה",
+    "caloriesPer100g": 471,
+    "proteinPer100g": 10,
+    "carbsPer100g": 64,
+    "fatPer100g": 20,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "cup", "grams": 90 }, { "label": "tbsp", "grams": 10 }]
+  },
+  {
+    "name": "Hummus Spread / ממרח חומוס",
+    "caloriesPer100g": 260,
+    "proteinPer100g": 8.2,
+    "carbsPer100g": 14.3,
+    "fatPer100g": 18.1,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "tbsp", "grams": 30 }, { "label": "cup", "grams": 240 }]
+  },
+  {
+    "name": "Tahini Paste / טחינה גולמית",
+    "caloriesPer100g": 595,
+    "proteinPer100g": 17,
+    "carbsPer100g": 21,
+    "fatPer100g": 53,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "tbsp", "grams": 15 }]
+  },
+  {
+    "name": "Peanut Butter / חמאת בוטנים",
+    "caloriesPer100g": 588,
+    "proteinPer100g": 25,
+    "carbsPer100g": 20,
+    "fatPer100g": 50,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "tbsp", "grams": 16 }, { "label": "tsp", "grams": 5 }]
+  },
+  {
+    "name": "Avocado Spread / ממרח אבוקדו",
+    "caloriesPer100g": 175,
+    "proteinPer100g": 2,
+    "carbsPer100g": 9,
+    "fatPer100g": 16,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "tbsp", "grams": 15 }]
+  },
+  {
+    "name": "Olive Oil / שמן זית",
+    "caloriesPer100g": 884,
+    "proteinPer100g": 0,
+    "carbsPer100g": 0,
+    "fatPer100g": 100,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "tbsp", "grams": 14 }, { "label": "tsp", "grams": 4.5 }]
+  },
+  {
+    "name": "Honey / דבש",
+    "caloriesPer100g": 304,
+    "proteinPer100g": 0.3,
+    "carbsPer100g": 82.4,
+    "fatPer100g": 0,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "tbsp", "grams": 21 }, { "label": "tsp", "grams": 7 }]
+  },
+  {
+    "name": "Date Syrup Silan / סילאן",
+    "caloriesPer100g": 295,
+    "proteinPer100g": 1.5,
+    "carbsPer100g": 73,
+    "fatPer100g": 0,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "tbsp", "grams": 20 }, { "label": "tsp", "grams": 7 }]
+  },
+  {
+    "name": "Bamba Osem / במבה",
+    "caloriesPer100g": 535,
+    "proteinPer100g": 16.3,
+    "carbsPer100g": 53,
+    "fatPer100g": 28,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "cup", "grams": 28 }, { "label": "piece", "grams": 2 }]
+  },
+  {
+    "name": "Bisli Grill / ביסלי גריל",
+    "caloriesPer100g": 485,
+    "proteinPer100g": 12,
+    "carbsPer100g": 66,
+    "fatPer100g": 19,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "cup", "grams": 35 }]
+  },
+  {
+    "name": "Bissli BBQ / ביסלי ברביקיו",
+    "caloriesPer100g": 490,
+    "proteinPer100g": 11,
+    "carbsPer100g": 66,
+    "fatPer100g": 20,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "cup", "grams": 35 }]
+  },
+  {
+    "name": "Pretzels / בייגלה",
+    "caloriesPer100g": 380,
+    "proteinPer100g": 10,
+    "carbsPer100g": 80,
+    "fatPer100g": 2,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "cup", "grams": 50 }]
+  },
+  {
+    "name": "Dark Chocolate 70% / שוקולד מריר",
+    "caloriesPer100g": 598,
+    "proteinPer100g": 7.8,
+    "carbsPer100g": 45,
+    "fatPer100g": 43,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "piece", "grams": 10 }]
+  },
+  {
+    "name": "Halva / חלבה",
+    "caloriesPer100g": 516,
+    "proteinPer100g": 11,
+    "carbsPer100g": 51,
+    "fatPer100g": 30,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "piece", "grams": 20 }]
+  },
+  {
+    "name": "Schnitzel Chicken Fried / שניצל עוף",
+    "caloriesPer100g": 260,
+    "proteinPer100g": 19,
+    "carbsPer100g": 12,
+    "fatPer100g": 15,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "piece", "grams": 120 }]
+  },
+  {
+    "name": "Shawarma Chicken / שווארמה עוף",
+    "caloriesPer100g": 217,
+    "proteinPer100g": 23,
+    "carbsPer100g": 2,
+    "fatPer100g": 12,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "tbsp", "grams": 25 }, { "label": "cup", "grams": 140 }]
+  },
+  {
+    "name": "Falafel / פלאפל",
+    "caloriesPer100g": 333,
+    "proteinPer100g": 13,
+    "carbsPer100g": 31,
+    "fatPer100g": 17,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "piece", "grams": 20 }]
+  },
+  {
+    "name": "Shakshuka / שקשוקה",
+    "caloriesPer100g": 145,
+    "proteinPer100g": 6.3,
+    "carbsPer100g": 7,
+    "fatPer100g": 9.7,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "cup", "grams": 230 }]
+  },
+  {
+    "name": "Sabich / סביח",
+    "caloriesPer100g": 210,
+    "proteinPer100g": 8.5,
+    "carbsPer100g": 24,
+    "fatPer100g": 9,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "piece", "grams": 300 }]
+  },
+  {
+    "name": "Jerusalem Mix / מעורב ירושלמי",
+    "caloriesPer100g": 220,
+    "proteinPer100g": 19,
+    "carbsPer100g": 4,
+    "fatPer100g": 14,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "cup", "grams": 140 }]
+  },
+  {
+    "name": "Bourekas Potato / בורקס תפוח אדמה",
+    "caloriesPer100g": 320,
+    "proteinPer100g": 7,
+    "carbsPer100g": 34,
+    "fatPer100g": 17,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "piece", "grams": 110 }]
+  },
+  {
+    "name": "Pizza Slice / פיצה משולש",
+    "caloriesPer100g": 266,
+    "proteinPer100g": 11,
+    "carbsPer100g": 33,
+    "fatPer100g": 10,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "piece", "grams": 125 }]
+  },
+  {
+    "name": "Pasta Cooked / פסטה מבושלת",
+    "caloriesPer100g": 157,
+    "proteinPer100g": 5.8,
+    "carbsPer100g": 30.9,
+    "fatPer100g": 0.9,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "cup", "grams": 140 }]
+  },
+  {
+    "name": "Tomato Sauce / רוטב עגבניות",
+    "caloriesPer100g": 52,
+    "proteinPer100g": 1.6,
+    "carbsPer100g": 9.8,
+    "fatPer100g": 1.2,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "tbsp", "grams": 15 }, { "label": "cup", "grams": 245 }]
+  },
+  {
+    "name": "Whey Protein Powder / אבקת חלבון",
+    "caloriesPer100g": 400,
+    "proteinPer100g": 78,
+    "carbsPer100g": 8,
+    "fatPer100g": 6,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "scoop", "grams": 30 }]
+  },
+  {
+    "name": "Protein Bar / חטיף חלבון",
+    "caloriesPer100g": 370,
+    "proteinPer100g": 33,
+    "carbsPer100g": 36,
+    "fatPer100g": 12,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "piece", "grams": 60 }]
+  },
+  {
+    "name": "Rice Cake / פריכית אורז",
+    "caloriesPer100g": 387,
+    "proteinPer100g": 8,
+    "carbsPer100g": 81,
+    "fatPer100g": 3,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "piece", "grams": 9 }]
+  },
+  {
+    "name": "Crackers / קרקרים",
+    "caloriesPer100g": 430,
+    "proteinPer100g": 9,
+    "carbsPer100g": 69,
+    "fatPer100g": 13,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "piece", "grams": 6 }]
+  },
+  {
+    "name": "Almonds / שקדים",
+    "caloriesPer100g": 579,
+    "proteinPer100g": 21,
+    "carbsPer100g": 22,
+    "fatPer100g": 50,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "tbsp", "grams": 9 }, { "label": "piece", "grams": 1.2 }]
+  },
+  {
+    "name": "Walnuts / אגוזי מלך",
+    "caloriesPer100g": 654,
+    "proteinPer100g": 15,
+    "carbsPer100g": 14,
+    "fatPer100g": 65,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "tbsp", "grams": 7 }]
+  },
+  {
+    "name": "Pistachios / פיסטוק",
+    "caloriesPer100g": 562,
+    "proteinPer100g": 20,
+    "carbsPer100g": 28,
+    "fatPer100g": 45,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "tbsp", "grams": 8 }]
+  },
+  {
+    "name": "Hummus Plate with Tahini / חומוס עם טחינה",
+    "caloriesPer100g": 280,
+    "proteinPer100g": 9,
+    "carbsPer100g": 16,
+    "fatPer100g": 19,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "plate", "grams": 250 }]
+  },
+  {
+    "name": "Israeli Salad / סלט ישראלי",
+    "caloriesPer100g": 34,
+    "proteinPer100g": 1.1,
+    "carbsPer100g": 4.9,
+    "fatPer100g": 1.4,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "cup", "grams": 180 }]
+  },
+  {
+    "name": "Caesar Salad / סלט קיסר",
+    "caloriesPer100g": 180,
+    "proteinPer100g": 7,
+    "carbsPer100g": 6,
+    "fatPer100g": 14,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "bowl", "grams": 320 }]
+  },
+  {
+    "name": "Coffee with Milk / קפה עם חלב",
+    "caloriesPer100g": 28,
+    "proteinPer100g": 1.5,
+    "carbsPer100g": 2.2,
+    "fatPer100g": 1.2,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "cup", "grams": 200 }]
+  },
+  {
+    "name": "Cappuccino Small / קפוצינו קטן",
+    "caloriesPer100g": 40,
+    "proteinPer100g": 2,
+    "carbsPer100g": 4,
+    "fatPer100g": 1.5,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "cup", "grams": 180 }]
+  },
+  {
+    "name": "Cola Regular / קולה רגילה",
+    "caloriesPer100g": 42,
+    "proteinPer100g": 0,
+    "carbsPer100g": 10.6,
+    "fatPer100g": 0,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "cup", "grams": 240 }, { "label": "can", "grams": 330 }]
+  },
+  {
+    "name": "Cola Zero / קולה זירו",
+    "caloriesPer100g": 0,
+    "proteinPer100g": 0,
+    "carbsPer100g": 0,
+    "fatPer100g": 0,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "cup", "grams": 240 }, { "label": "can", "grams": 330 }]
+  },
+  {
+    "name": "Orange Juice / מיץ תפוזים",
+    "caloriesPer100g": 45,
+    "proteinPer100g": 0.7,
+    "carbsPer100g": 10.4,
+    "fatPer100g": 0.2,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "cup", "grams": 240 }]
+  },
+  {
+    "name": "Ketchup / קטשופ",
+    "caloriesPer100g": 112,
+    "proteinPer100g": 1.3,
+    "carbsPer100g": 26,
+    "fatPer100g": 0.2,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "tbsp", "grams": 17 }, { "label": "tsp", "grams": 5 }]
+  },
+  {
+    "name": "Mayonnaise / מיונז",
+    "caloriesPer100g": 680,
+    "proteinPer100g": 1,
+    "carbsPer100g": 1,
+    "fatPer100g": 75,
+    "servings": [{ "label": "g", "grams": 1 }, { "label": "tbsp", "grams": 14 }, { "label": "tsp", "grams": 5 }]
+  }
+]
