@@ -3,6 +3,37 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 
+let activeRegistration = null
+
+const publishPwaUpdateStatus = (status) => {
+  window.__caloriesPwaUpdateStatus = status
+  window.dispatchEvent(new CustomEvent('calories-pwa-update-status', { detail: { status } }))
+}
+
+window.__caloriesForceAppUpdate = async () => {
+  if (!('serviceWorker' in navigator)) {
+    throw new Error('Service worker is not supported in this browser.')
+  }
+
+  const registration = activeRegistration || (await navigator.serviceWorker.getRegistration())
+  if (!registration) {
+    throw new Error('App updater is not ready yet. Please try again in a moment.')
+  }
+
+  publishPwaUpdateStatus('checking')
+  await registration.update()
+
+  if (registration.waiting) {
+    publishPwaUpdateStatus('applying')
+    showUpdateToast('Applying update...')
+    registration.waiting.postMessage({ type: 'SKIP_WAITING' })
+    return
+  }
+
+  publishPwaUpdateStatus('idle')
+  showUpdateToast('Already up to date.')
+}
+
 const showUpdateToast = (message) => {
   const existing = document.getElementById('pwa-update-toast')
   if (existing) {
@@ -41,6 +72,12 @@ createRoot(document.getElementById('root')).render(
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
+    publishPwaUpdateStatus('idle')
+
+    if (navigator.storage?.persist) {
+      navigator.storage.persist().catch(() => {})
+    }
+
     const serviceWorkerUrl = `${import.meta.env.BASE_URL}service-worker.js`
 
     const attachUpdateHandler = (registration) => {
@@ -50,6 +87,7 @@ if ('serviceWorker' in navigator) {
 
         installingWorker.addEventListener('statechange', () => {
           if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            publishPwaUpdateStatus('available')
             showUpdateToast('Updating app...')
             registration.waiting?.postMessage({ type: 'SKIP_WAITING' })
           }
@@ -60,6 +98,7 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker
       .register(serviceWorkerUrl)
       .then((registration) => {
+        activeRegistration = registration
         attachUpdateHandler(registration)
         registration.update()
         setInterval(() => registration.update(), 60 * 60 * 1000)
@@ -69,6 +108,7 @@ if ('serviceWorker' in navigator) {
       })
 
     navigator.serviceWorker.addEventListener('controllerchange', () => {
+      publishPwaUpdateStatus('reloading')
       showUpdateToast('Update ready. Reloading...')
       window.location.reload()
     })

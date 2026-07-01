@@ -1,31 +1,68 @@
-import Dexie from 'dexie'
+/**
+ * This file re-exports all data access functions from the data adapter.
+ *
+ * The data adapter routes operations to either Dexie (local-only) or
+ * Firestore (cloud with offline persistence) based on auth state.
+ *
+ * Importing from './db' works exactly as before — no App.jsx changes needed.
+ *
+ * Additionally, this module retains pure utility functions (normalizeText,
+ * toDateKey, adjustDateByDays, etc.) that don't need Firebase.
+ */
+import {
+  searchFoods as _searchFoods,
+  getAllFoods as _getAllFoods,
+  addFood as _addFood,
+  bulkPutFoods as _bulkPutFoods,
+  getAllMeals as _getAllMeals,
+  addMeal as _addMeal,
+  updateMeal as _updateMeal,
+  deleteMeal as _deleteMeal,
+  addLog as _addLog,
+  getLogsForDate as _getLogsForDate,
+  getLogsBetweenDates as _getLogsBetweenDates,
+  updateLog as _updateLog,
+  deleteLog as _deleteLog,
+  getRecentLogEntries as _getRecentLogEntries,
+  addExercise as _addExercise,
+  updateExercise as _updateExercise,
+  deleteExercise as _deleteExercise,
+  getExercisesForDate as _getExercisesForDate,
+  getExercisesBetweenDates as _getExercisesBetweenDates,
+  getSettings as _getSettings,
+  saveSettings as _saveSettings,
+  getMeta as _getMeta,
+  putMeta as _putMeta,
+  exportAllData as _exportAllData,
+  restoreAllData as _restoreAllData,
+} from './dataAdapter'
 
-const SEED_VERSION = 2
-
-class CaloriesDB extends Dexie {
-  constructor() {
-    super('CaloriesCoachDB')
-
-    this.version(1).stores({
-      foods: '++id, name, searchName, source',
-      meals: '++id, name, searchName',
-      logs: '++id, dateKey, timestamp',
-      settings: '&key',
-      meta: '&key',
-    })
-
-    this.version(2).stores({
-      foods: '++id, name, searchName, source',
-      meals: '++id, name, searchName',
-      logs: '++id, dateKey, timestamp',
-      exercises: '++id, dateKey, timestamp, type',
-      settings: '&key',
-      meta: '&key',
-    })
-  }
-}
-
-export const db = new CaloriesDB()
+// Create local bindings so internal functions can use them
+export const searchFoods = _searchFoods
+export const getAllFoods = _getAllFoods
+export const addFood = _addFood
+export const bulkPutFoods = _bulkPutFoods
+export const getAllMeals = _getAllMeals
+export const addMeal = _addMeal
+export const updateMeal = _updateMeal
+export const deleteMeal = _deleteMeal
+export const addLog = _addLog
+export const getLogsForDate = _getLogsForDate
+export const getLogsBetweenDates = _getLogsBetweenDates
+export const updateLog = _updateLog
+export const deleteLog = _deleteLog
+export const getRecentLogEntries = _getRecentLogEntries
+export const addExercise = _addExercise
+export const updateExercise = _updateExercise
+export const deleteExercise = _deleteExercise
+export const getExercisesForDate = _getExercisesForDate
+export const getExercisesBetweenDates = _getExercisesBetweenDates
+export const getSettings = _getSettings
+export const saveSettings = _saveSettings
+export const getMeta = _getMeta
+export const putMeta = _putMeta
+export const exportAllData = _exportAllData
+export const restoreAllData = _restoreAllData
 
 export const normalizeText = (value = '') =>
   value
@@ -65,9 +102,74 @@ export const adjustDateByDays = (date, diff) => {
   return d
 }
 
-export const ensureSeedData = async () => {
-  const seedMeta = await db.meta.get('seedVersion')
-  if (seedMeta?.value === SEED_VERSION) {
+const SEED_VERSION = 4
+
+const buildSeedMergePlan = (existingFoods, incomingBaseFoods) => {
+  const existingById = new Map(existingFoods.map((food) => [food.id, food]))
+  const existingBaseBySearchName = new Map(
+    existingFoods.filter((food) => food.source === 'base').map((food) => [food.searchName, food]),
+  )
+
+  let adds = 0
+  let updates = 0
+  let unchanged = 0
+  let idConflicts = 0
+
+  const preparedFoods = incomingBaseFoods.map((food) => {
+    const existingBySameId = food.id != null ? existingById.get(food.id) : null
+    const existingBaseByName = existingBaseBySearchName.get(food.searchName)
+
+    if (existingBaseByName?.id != null) {
+      const merged = { ...food, id: existingBaseByName.id }
+      const hadChanges = JSON.stringify(existingBaseByName) !== JSON.stringify(merged)
+      if (hadChanges) updates += 1
+      else unchanged += 1
+      return merged
+    }
+
+    if (existingBySameId && existingBySameId.source !== 'base') {
+      const { id, ...foodWithoutId } = food
+      idConflicts += 1
+      adds += 1
+      return foodWithoutId
+    }
+
+    if (existingBySameId) updates += 1
+    else adds += 1
+
+    return food
+  })
+
+  return {
+    preparedFoods,
+    summary: {
+      incoming: incomingBaseFoods.length,
+      adds,
+      updates,
+      unchanged,
+      idConflicts,
+      changes: adds + updates,
+    },
+  }
+}
+
+export const getSeedStatus = async () => {
+  const [seedVersionMeta, seedSyncedAtMeta] = await Promise.all([
+    getMeta('seedVersion'),
+    getMeta('seedSyncedAt'),
+  ])
+
+  return {
+    currentVersion: seedVersionMeta?.value ?? null,
+    latestVersion: SEED_VERSION,
+    lastSyncedAt: seedSyncedAtMeta?.value ?? null,
+  }
+}
+
+export const ensureSeedData = async ({ previewOnly = false } = {}) => {
+  const seedMeta = await getMeta('seedVersion')
+  const isVersionCurrent = seedMeta?.value === SEED_VERSION
+  if (isVersionCurrent && !previewOnly) {
     return
   }
 
@@ -80,139 +182,33 @@ export const ensureSeedData = async () => {
     source: 'base',
   }))
 
-  await db.transaction('rw', db.foods, db.meta, async () => {
-    await db.foods.where('source').equals('base').delete()
-    await db.foods.bulkAdd(normalizedFoods)
-    await db.meta.put({ key: 'seedVersion', value: SEED_VERSION })
-  })
-}
+  const existingFoods = await getAllFoods()
+  const plan = buildSeedMergePlan(existingFoods, normalizedFoods)
 
-export const getSettings = async () => {
-  const rows = await db.settings.toArray()
-  const mapped = rows.reduce((acc, row) => {
-    acc[row.key] = row.value
-    return acc
-  }, {})
-  return { ...defaultSettings, ...mapped }
-}
-
-export const saveSettings = async (nextSettings) => {
-  const updates = Object.entries(nextSettings).map(([key, value]) => ({ key, value }))
-  await db.settings.bulkPut(updates)
-}
-
-export const searchFoods = async (query, limit = 20) => {
-  const normalized = normalizeText(query)
-
-  if (!normalized) {
-    return db.foods.orderBy('name').limit(limit).toArray()
-  }
-
-  const startsWith = await db.foods.where('searchName').startsWith(normalized).limit(limit).toArray()
-  if (startsWith.length >= limit) {
-    return startsWith
-  }
-
-  const fallback = await db.foods
-    .filter((food) => food.searchName.includes(normalized))
-    .limit(limit - startsWith.length)
-    .toArray()
-
-  return [...startsWith, ...fallback]
-}
-
-export const getAllMeals = async () => db.meals.orderBy('name').toArray()
-
-export const getLogsForDate = async (dateKey) =>
-  db.logs.where('dateKey').equals(dateKey).toArray()
-
-export const getLogsBetweenDates = async (startDateKey, endDateKey) =>
-  db.logs.where('dateKey').between(startDateKey, endDateKey, true, true).toArray()
-
-export const getExercisesForDate = async (dateKey) =>
-  db.exercises.where('dateKey').equals(dateKey).toArray()
-
-export const getExercisesBetweenDates = async (startDateKey, endDateKey) =>
-  db.exercises.where('dateKey').between(startDateKey, endDateKey, true, true).toArray()
-
-export const getRecentLogEntries = async (limit = 8) => {
-  const rows = await db.logs.orderBy('timestamp').reverse().limit(limit * 8).toArray()
-  const result = []
-  const seen = new Set()
-
-  for (const row of rows) {
-    if (row.type === 'food' && row.foodId) {
-      const key = `food:${row.foodId}`
-      if (seen.has(key)) continue
-      seen.add(key)
-      result.push({
-        key,
-        type: 'food',
-        foodId: row.foodId,
-        label: row.foodName || row.description || 'Food',
-        amount: Number(row.amount) || 1,
-        unit: row.unit || 'g',
-      })
-    }
-
-    if (row.type === 'meal' && row.mealId) {
-      const key = `meal:${row.mealId}`
-      if (seen.has(key)) continue
-      seen.add(key)
-      result.push({
-        key,
-        type: 'meal',
-        mealId: row.mealId,
-        label: row.mealName || row.description || 'Meal',
-      })
-    }
-
-    if (result.length >= limit) {
-      break
+  if (previewOnly) {
+    return {
+      updated: false,
+      summary: plan.summary,
+      seedVersion: SEED_VERSION,
     }
   }
 
-  return result
-}
+  if (isVersionCurrent && plan.summary.changes === 0) {
+    return {
+      updated: false,
+      summary: plan.summary,
+      seedVersion: SEED_VERSION,
+    }
+  }
 
-export const exportAllData = async () => {
-  const [foods, meals, logs, exercises, settings, meta] = await Promise.all([
-    db.foods.toArray(),
-    db.meals.toArray(),
-    db.logs.toArray(),
-    db.exercises.toArray(),
-    db.settings.toArray(),
-    db.meta.toArray(),
-  ])
+  // Merge-only update: add new base rows and update changed base rows without deleting user data.
+  await bulkPutFoods(plan.preparedFoods)
+  await putMeta({ key: 'seedVersion', value: SEED_VERSION })
+  await putMeta({ key: 'seedSyncedAt', value: new Date().toISOString() })
 
   return {
-    exportedAt: new Date().toISOString(),
-    app: 'Calories Coach',
-    version: 1,
-    data: { foods, meals, logs, exercises, settings, meta },
+    updated: plan.summary.changes > 0,
+    summary: plan.summary,
+    seedVersion: SEED_VERSION,
   }
-}
-
-export const restoreAllData = async (backup) => {
-  if (!backup?.data) {
-    throw new Error('Invalid backup file format.')
-  }
-
-  const { foods = [], meals = [], logs = [], exercises = [], settings = [], meta = [] } = backup.data
-
-  await db.transaction('rw', db.foods, db.meals, db.logs, db.exercises, db.settings, db.meta, async () => {
-    await db.foods.clear()
-    await db.meals.clear()
-    await db.logs.clear()
-    await db.exercises.clear()
-    await db.settings.clear()
-    await db.meta.clear()
-
-    if (foods.length) await db.foods.bulkAdd(foods)
-    if (meals.length) await db.meals.bulkAdd(meals)
-    if (logs.length) await db.logs.bulkAdd(logs)
-    if (exercises.length) await db.exercises.bulkAdd(exercises)
-    if (settings.length) await db.settings.bulkAdd(settings)
-    if (meta.length) await db.meta.bulkAdd(meta)
-  })
 }

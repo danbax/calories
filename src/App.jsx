@@ -1,33 +1,63 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { subscribeToAuth, handleLogout } from './services/auth'
 import {
   FaCamera,
-  FaChartPie,
   FaGear,
   FaHouse,
   FaListCheck,
   FaPen,
   FaPlus,
   FaTrash,
-  FaXmark,
 } from 'react-icons/fa6'
 import {
   adjustDateByDays,
-  db,
+  addFood,
+  addLog,
+  addMeal,
+  addExercise,
   ensureSeedData,
   exportAllData,
+  getAllFoods,
   getAllMeals,
   getExercisesBetweenDates,
   getExercisesForDate,
   getLogsBetweenDates,
   getLogsForDate,
   getRecentLogEntries,
+  getSeedStatus,
   getSettings,
   normalizeText,
   restoreAllData,
   saveSettings,
   toDateKey,
+  updateLog,
+  updateMeal,
+  updateExercise,
+  // db*Delete functions are used inside local wrappers (deleteLog, deleteMeal, deleteExercise)
+  deleteLog as dbDeleteLog,
+  deleteMeal as dbDeleteMeal,
+  deleteExercise as dbDeleteExercise,
 } from './db'
+
+import {
+  DashboardActivity,
+  DashboardOverview,
+  DashboardTrends,
+  DateNavigatorCard,
+} from './components/dashboard-sections'
 import { estimateNutritionFromImage } from './services/ai'
+import { ProgressRing } from './components/ProgressRing'
+import { LoadingButton } from './components/LoadingButton'
+import { SegmentedTabs } from './components/SegmentedTabs'
+import { SectionLoader } from './components/SectionLoader'
+import { BottomSheet } from './components/BottomSheet'
+import { TopSheet } from './components/TopSheet'
+import { DashboardPage } from './pages/DashboardPage'
+import { LogPage } from './pages/LogPage'
+import { MealsPage } from './pages/MealsPage'
+import { SettingsPage } from './pages/SettingsPage'
+import { LoginPage } from './pages/LoginPage'
+import { Snackbar, showSnackbar } from './components/Snackbar'
 
 const macroColors = {
   protein: 'bg-protein',
@@ -61,10 +91,10 @@ const calculateFoodNutrition = (food, amount, unit) => {
 
   return {
     grams,
-    calories: Number((food.caloriesPer100g * factor).toFixed(1)),
-    protein: Number((food.proteinPer100g * factor).toFixed(1)),
-    carbs: Number((food.carbsPer100g * factor).toFixed(1)),
-    fat: Number((food.fatPer100g * factor).toFixed(1)),
+    calories: Number(((food.nutrition_per_100g?.calories ?? 0) * factor).toFixed(1)),
+    protein: Number(((food.nutrition_per_100g?.proteins ?? 0) * factor).toFixed(1)),
+    carbs: Number(((food.nutrition_per_100g?.carbs ?? 0) * factor).toFixed(1)),
+    fat: Number(((food.nutrition_per_100g?.fats ?? 0) * factor).toFixed(1)),
   }
 }
 
@@ -131,57 +161,22 @@ const buildDateKeys = (endDate, daysCount) => {
   return keys
 }
 
-function BottomSheet({ open, title, onClose, children }) {
-  if (!open) return null
-
-  return (
-    <>
-      <button className="sheet-overlay" onClick={onClose} aria-label="Close"></button>
-      <section className="sheet-panel">
-        <div className="mb-3 flex items-center justify-between border-b border-[#dfe7de] pb-3">
-          <h3 className="font-['Sora'] text-lg font-semibold text-[#163d31]">{title}</h3>
-          <button className="btn-muted !rounded-full !p-2" onClick={onClose}>
-            <FaXmark />
-          </button>
-        </div>
-        {children}
-      </section>
-    </>
-  )
-}
-
-function ProgressRing({ consumed, goal }) {
-  const safeGoal = goal || 1
-  const progress = Math.min(consumed / safeGoal, 1)
-  const radius = 52
-  const circumference = 2 * Math.PI * radius
-
-  return (
-    <div className="relative grid h-36 w-36 place-items-center">
-      <svg className="h-36 w-36 -rotate-90" viewBox="0 0 140 140">
-        <circle cx="70" cy="70" r={radius} stroke="#deebdf" strokeWidth="14" fill="none" />
-        <circle
-          cx="70"
-          cy="70"
-          r={radius}
-          stroke="#1ea96d"
-          strokeWidth="14"
-          strokeLinecap="round"
-          fill="none"
-          strokeDasharray={circumference}
-          strokeDashoffset={circumference * (1 - progress)}
-        />
-      </svg>
-      <div className="absolute text-center">
-        <p className="text-xs uppercase tracking-wide text-[#4a6658]">Calories</p>
-        <p className="font-['Sora'] text-2xl font-bold text-[#163d31]">{Math.round(consumed)}</p>
-      </div>
-    </div>
-  )
-}
-
 function App() {
+  const [firebaseUser, setFirebaseUser] = useState(undefined)
+  const [authReady, setAuthReady] = useState(false)
+
+  useEffect(() => {
+    const unsubscribe = subscribeToAuth((user) => {
+      setFirebaseUser(user)
+      setAuthReady(true)
+    })
+    return unsubscribe
+  }, [])
+
   const [activeTab, setActiveTab] = useState('dashboard')
+  const [dashboardView, setDashboardView] = useState('overview')
+  const [logView, setLogView] = useState('quick')
+  const [settingsView, setSettingsView] = useState('targets')
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [logs, setLogs] = useState([])
   const [exercises, setExercises] = useState([])
@@ -189,6 +184,9 @@ function App() {
   const [foods, setFoods] = useState([])
   const [meals, setMeals] = useState([])
   const [settings, setSettings] = useState(null)
+  const [seedStatus, setSeedStatus] = useState({ currentVersion: null, latestVersion: null, lastSyncedAt: null })
+  const [seedPreview, setSeedPreview] = useState(null)
+  const [pwaUpdateStatus, setPwaUpdateStatus] = useState(() => window.__caloriesPwaUpdateStatus || 'idle')
 
   const [logQuery, setLogQuery] = useState('')
   const [selectedLoggable, setSelectedLoggable] = useState(null)
@@ -208,6 +206,9 @@ function App() {
   const [mealName, setMealName] = useState('')
   const [mealItems, setMealItems] = useState([createEmptyMealItem()])
   const [editingMealId, setEditingMealId] = useState(null)
+  const [mealFoodQuery, setMealFoodQuery] = useState('')
+  const [mealFoodAutocompleteOpen, setMealFoodAutocompleteOpen] = useState(false)
+  const [mealItemBeingEdited, setMealItemBeingEdited] = useState(null)
 
   const [aiDataUrl, setAiDataUrl] = useState('')
   const [aiEstimate, setAiEstimate] = useState({ description: '', calories: 0, protein: 0, carbs: 0, fat: 0 })
@@ -222,7 +223,40 @@ function App() {
   })
 
   const [editingLog, setEditingLog] = useState(null)
-  const [touchStartX, setTouchStartX] = useState(0)
+  const logSearchInputRef = useRef(null)
+  const mealSearchInputRef = useRef(null)
+  const touchGestureRef = useRef({ x: 0, y: 0, active: false, pointerId: null })
+  const swipeTimerRef = useRef(null)
+  const swipeTransitionTimerRef = useRef(null)
+  const [loadingAction, setLoadingAction] = useState('')
+  const [isDayLoading, setIsDayLoading] = useState(false)
+  const [swipeOffsetX, setSwipeOffsetX] = useState(0)
+  const [isSwipeDragging, setIsSwipeDragging] = useState(false)
+  const [swipeTransition, setSwipeTransition] = useState(null)
+
+  const isActionLoading = useCallback((key) => loadingAction === key, [loadingAction])
+  const runLoadingAction = useCallback(async (key, operation) => {
+    setLoadingAction(key)
+    try {
+      await operation()
+    } finally {
+      setLoadingAction('')
+    }
+  }, [])
+  const isUpdateAvailable = pwaUpdateStatus === 'available'
+
+  const formatDateTime = useCallback((value) => {
+    if (!value) return '-'
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return '-'
+    return date.toLocaleString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  }, [])
 
   const dateKey = useMemo(() => toDateKey(selectedDate), [selectedDate])
   const totals = useMemo(() => sumNutrition(logs), [logs])
@@ -310,8 +344,37 @@ function App() {
     return ranked.slice(0, maxResults)
   }, [logQuery, loggableIndex])
 
+  const mealFoodAutocompleteResults = useMemo(() => {
+    const normalized = normalizeText(mealFoodQuery)
+    const maxResults = 24
+    const foodIndex = foods.map((food) => ({
+      id: food.id,
+      type: 'food',
+      label: food.name,
+      searchText: normalizeText(food.name),
+    }))
+
+    if (!normalized) {
+      return foodIndex.slice(0, maxResults)
+    }
+
+    const ranked = foodIndex
+      .map((row) => {
+        let score = 0
+        if (row.searchText.startsWith(normalized)) score += 1000
+        if (row.searchText.includes(normalized)) score += 300
+        if (!row.searchText.includes(normalized)) score = -1
+
+        return { ...row, score }
+      })
+      .filter((row) => row.score >= 0)
+      .sort((a, b) => b.score - a.score || a.label.localeCompare(b.label))
+
+    return ranked.slice(0, maxResults)
+  }, [mealFoodQuery, foods])
+
   const loadFoods = useCallback(async () => {
-    const allFoods = await db.foods.orderBy('name').toArray()
+    const allFoods = await getAllFoods()
     setFoods(allFoods)
   }, [])
 
@@ -366,7 +429,11 @@ function App() {
   )
 
   const loadRecentEntries = useCallback(async () => {
-    setRecentLogEntries(await getRecentLogEntries(8))
+    setRecentLogEntries(await getRecentLogEntries(20))
+  }, [])
+
+  const loadSeedSyncStatus = useCallback(async () => {
+    setSeedStatus(await getSeedStatus())
   }, [])
 
   const bootstrap = useCallback(async () => {
@@ -381,24 +448,67 @@ function App() {
       loadDateLogs(todayKey),
       loadDateExercises(todayKey),
       loadRecentEntries(),
+      loadSeedSyncStatus(),
       loadDailyHistory(today, calculateRestCalories(savedSettings)),
     ])
-  }, [loadDailyHistory, loadDateExercises, loadDateLogs, loadFoods, loadRecentEntries])
+  }, [loadDailyHistory, loadDateExercises, loadDateLogs, loadFoods, loadRecentEntries, loadSeedSyncStatus])
 
   useEffect(() => {
+    // Only run bootstrap after we know the auth state.
+    // If signed in, firebaseUser is set and dataAdapter uses Firestore.
+    // If signed out, the LoginPage will be shown, skip bootstrap.
+    if (!authReady || !firebaseUser) return
+
     bootstrap().catch((error) => {
       alert(error.message)
     })
-  }, [bootstrap])
+  }, [authReady, firebaseUser, bootstrap])
 
   useEffect(() => {
-    Promise.all([loadDateLogs(dateKey), loadDateExercises(dateKey)]).catch((error) => alert(error.message))
+    setIsDayLoading(true)
+    Promise.all([loadDateLogs(dateKey), loadDateExercises(dateKey)])
+      .catch((error) => alert(error.message))
+      .finally(() => setIsDayLoading(false))
   }, [dateKey, loadDateExercises, loadDateLogs])
 
   useEffect(() => {
     if (!settings) return
     loadDailyHistory(selectedDate, calculateRestCalories(settings)).catch((error) => alert(error.message))
   }, [loadDailyHistory, selectedDate, settings])
+
+  useEffect(() => {
+    return () => {
+      if (swipeTimerRef.current) {
+        window.clearTimeout(swipeTimerRef.current)
+      }
+      if (swipeTransitionTimerRef.current) {
+        window.clearTimeout(swipeTransitionTimerRef.current)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!foodSheetOpen) return
+    const timer = window.setTimeout(() => {
+      if (logSearchInputRef.current) {
+        logSearchInputRef.current.focus()
+      }
+      setIsAutocompleteOpen(true)
+    }, 90)
+
+    return () => window.clearTimeout(timer)
+  }, [foodSheetOpen])
+
+  useEffect(() => {
+    const handlePwaUpdateStatus = (event) => {
+      const nextStatus = event?.detail?.status
+      if (!nextStatus) return
+      setPwaUpdateStatus(nextStatus)
+    }
+
+    window.addEventListener('calories-pwa-update-status', handlePwaUpdateStatus)
+    return () => window.removeEventListener('calories-pwa-update-status', handlePwaUpdateStatus)
+  }, [])
 
   const resetFoodForm = () => {
     setSelectedLoggable(null)
@@ -411,7 +521,7 @@ function App() {
   const addFoodLogEntry = useCallback(
     async (food, amount, unit) => {
       const nutrition = calculateFoodNutrition(food, amount, unit)
-      await db.logs.add({
+      await addLog({
         dateKey,
         timestamp: Date.now(),
         type: 'food',
@@ -439,51 +549,58 @@ function App() {
   }
 
   const saveFoodLog = async () => {
-    if (!selectedLoggable) return
+    await runLoadingAction('save-food-log', async () => {
+      if (!selectedLoggable) return
 
-    if (selectedLoggable.type === 'meal') {
-      if (!selectedMeal) return
-      await logMeal(selectedMeal)
+      if (selectedLoggable.type === 'meal') {
+        if (!selectedMeal) return
+        await logMeal(selectedMeal)
+        resetFoodForm()
+        setFoodSheetOpen(false)
+        return
+      }
+
+      if (!selectedFood || !selectedFoodNutrition) return
+      await addFoodLogEntry(selectedFood, foodAmount, foodUnit)
       resetFoodForm()
       setFoodSheetOpen(false)
-      return
-    }
-
-    if (!selectedFood || !selectedFoodNutrition) return
-    await addFoodLogEntry(selectedFood, foodAmount, foodUnit)
-    resetFoodForm()
-    setFoodSheetOpen(false)
+    })
   }
 
   const saveCustomFood = async () => {
-    if (!customFood.name.trim()) return
+    await runLoadingAction('save-custom-food', async () => {
+      if (!customFood.name.trim()) return
 
-    const servings = [
-      { label: 'g', grams: 1 },
-      { label: 'tbsp', grams: Number(customFood.tbsp) || 0 },
-      { label: 'cup', grams: Number(customFood.cup) || 0 },
-      { label: 'piece', grams: Number(customFood.piece) || 0 },
-    ].filter((row) => row.grams > 0)
+      const servings = [
+        { label: 'g', grams: 1 },
+        { label: 'tbsp', grams: Number(customFood.tbsp) || 0 },
+        { label: 'cup', grams: Number(customFood.cup) || 0 },
+        { label: 'piece', grams: Number(customFood.piece) || 0 },
+      ].filter((row) => row.grams > 0)
 
-    await db.foods.add({
-      name: customFood.name.trim(),
-      searchName: normalizeText(customFood.name),
-      source: 'custom',
-      caloriesPer100g: Number(customFood.caloriesPer100g) || 0,
-      proteinPer100g: Number(customFood.proteinPer100g) || 0,
-      carbsPer100g: Number(customFood.carbsPer100g) || 0,
-      fatPer100g: Number(customFood.fatPer100g) || 0,
-      servings,
-      createdAt: Date.now(),
+      await addFood({
+        name: customFood.name.trim(),
+        searchName: normalizeText(customFood.name),
+        source: 'custom',
+        nutrition_per_100g: {
+          calories: Number(customFood.caloriesPer100g) || 0,
+          proteins: Number(customFood.proteinPer100g) || 0,
+          carbs: Number(customFood.carbsPer100g) || 0,
+          fats: Number(customFood.fatPer100g) || 0,
+        },
+        servings,
+        createdAt: Date.now(),
+      })
+
+      setCustomFood(defaultCustomFood)
+      setCustomFoodSheetOpen(false)
+      await loadFoods()
     })
-
-    setCustomFood(defaultCustomFood)
-    setCustomFoodSheetOpen(false)
-    await loadFoods()
   }
 
   const saveMeal = async () => {
-    if (!mealName.trim()) return
+    await runLoadingAction('save-meal', async () => {
+      if (!mealName.trim()) return
 
     const foodMap = Object.fromEntries(foods.map((food) => [String(food.id), food]))
     const itemRows = mealItems
@@ -501,38 +618,42 @@ function App() {
       })
       .filter(Boolean)
 
-    if (!itemRows.length) return
+      if (!itemRows.length) return
 
-    const totalsRow = sumNutrition(itemRows)
+      const totalsRow = sumNutrition(itemRows)
 
-    if (editingMealId) {
-      await db.meals.update(editingMealId, {
-        name: mealName.trim(),
-        searchName: normalizeText(mealName),
-        items: itemRows,
-        totals: totalsRow,
-      })
-    } else {
-      await db.meals.add({
-        name: mealName.trim(),
-        searchName: normalizeText(mealName),
-        items: itemRows,
-        totals: totalsRow,
-        createdAt: Date.now(),
-      })
-    }
+      if (editingMealId) {
+        await updateMeal(editingMealId, {
+          name: mealName.trim(),
+          searchName: normalizeText(mealName),
+          items: itemRows,
+          totals: totalsRow,
+        })
+      } else {
+        await addMeal({
+          name: mealName.trim(),
+          searchName: normalizeText(mealName),
+          items: itemRows,
+          totals: totalsRow,
+          createdAt: Date.now(),
+        })
+      }
 
-    setMealName('')
-    setMealItems([createEmptyMealItem()])
-    setEditingMealId(null)
-    setMealSheetOpen(false)
-    setMeals(await getAllMeals())
+      setMealName('')
+      setMealItems([createEmptyMealItem()])
+      setEditingMealId(null)
+      setMealSheetOpen(false)
+      setMeals(await getAllMeals())
+    })
   }
 
   const openCreateMeal = () => {
     setEditingMealId(null)
     setMealName('')
     setMealItems([createEmptyMealItem()])
+    setMealFoodQuery('')
+    setMealFoodAutocompleteOpen(false)
+    setMealItemBeingEdited(null)
     setMealSheetOpen(true)
   }
 
@@ -552,15 +673,15 @@ function App() {
   }
 
   const deleteMeal = async (mealId) => {
-    await db.meals.delete(mealId)
+    await dbDeleteMeal(mealId)
     setMeals(await getAllMeals())
   }
 
   const logMeal = async (meal) => {
-    await db.logs.add({
-      dateKey,
-      timestamp: Date.now(),
-      type: 'meal',
+      await addLog({
+        dateKey,
+        timestamp: Date.now(),
+        type: 'meal',
       mealId: meal.id,
       mealName: meal.name,
       description: meal.name,
@@ -573,38 +694,42 @@ function App() {
   }
 
   const quickAddRecent = async (entry) => {
-    if (entry.type === 'meal') {
-      const meal = meals.find((row) => row.id === entry.mealId)
-      if (meal) await logMeal(meal)
-      return
-    }
+    await runLoadingAction(`quick-add-${entry.key}`, async () => {
+      if (entry.type === 'meal') {
+        const meal = meals.find((row) => row.id === entry.mealId)
+        if (meal) await logMeal(meal)
+        return
+      }
 
-    const food = foods.find((row) => row.id === entry.foodId)
-    if (!food) return
-    const unit = entry.unit || food.servings?.[0]?.label || 'g'
-    const amount = Number(entry.amount) || 1
-    await addFoodLogEntry(food, amount, unit)
+      const food = foods.find((row) => row.id === entry.foodId)
+      if (!food) return
+      const unit = entry.unit || food.servings?.[0]?.label || 'g'
+      const amount = Number(entry.amount) || 1
+      await addFoodLogEntry(food, amount, unit)
+    })
   }
 
   const deleteLog = async (id) => {
-    await db.logs.delete(id)
+    await dbDeleteLog(id)
     await Promise.all([loadDateLogs(dateKey), loadRecentEntries(), loadDailyHistory(selectedDate, restingCalories)])
   }
 
   const saveEditedLog = async () => {
-    if (!editingLog) return
+    await runLoadingAction('save-edited-log', async () => {
+      if (!editingLog) return
 
-    await db.logs.update(editingLog.id, {
-      description: editingLog.description,
-      calories: Number(editingLog.calories) || 0,
-      protein: Number(editingLog.protein) || 0,
-      carbs: Number(editingLog.carbs) || 0,
-      fat: Number(editingLog.fat) || 0,
+      await updateLog(editingLog.id, {
+        description: editingLog.description,
+        calories: Number(editingLog.calories) || 0,
+        protein: Number(editingLog.protein) || 0,
+        carbs: Number(editingLog.carbs) || 0,
+        fat: Number(editingLog.fat) || 0,
+      })
+
+      setEditSheetOpen(false)
+      setEditingLog(null)
+      await Promise.all([loadDateLogs(dateKey), loadRecentEntries(), loadDailyHistory(selectedDate, restingCalories)])
     })
-
-    setEditSheetOpen(false)
-    setEditingLog(null)
-    await Promise.all([loadDateLogs(dateKey), loadRecentEntries(), loadDailyHistory(selectedDate, restingCalories)])
   }
 
   const openExerciseCreate = () => {
@@ -625,38 +750,40 @@ function App() {
   }
 
   const saveExercise = async () => {
-    const minutes = Number(exerciseForm.minutes) || 0
-    if (minutes <= 0) return
+    await runLoadingAction('save-exercise', async () => {
+      const minutes = Number(exerciseForm.minutes) || 0
+      if (minutes <= 0) return
 
-    const caloriesBurned = Number(exerciseForm.caloriesBurned) || estimatedExerciseBurn
-    const payload = {
-      dateKey,
-      timestamp: Date.now(),
-      type: exerciseForm.type,
-      minutes,
-      caloriesBurned,
-      notes: exerciseForm.notes.trim(),
-      description: `${exerciseForm.type} (${minutes} min)`,
-    }
+      const caloriesBurned = Number(exerciseForm.caloriesBurned) || estimatedExerciseBurn
+      const payload = {
+        dateKey,
+        timestamp: Date.now(),
+        type: exerciseForm.type,
+        minutes,
+        caloriesBurned,
+        notes: exerciseForm.notes.trim(),
+        description: `${exerciseForm.type} (${minutes} min)`,
+      }
 
-    if (editingExercise?.id) {
-      await db.exercises.update(editingExercise.id, payload)
-    } else {
-      await db.exercises.add(payload)
-    }
+      if (editingExercise?.id) {
+        await updateExercise(editingExercise.id, payload)
+      } else {
+        await addExercise(payload)
+      }
 
-    setExerciseSheetOpen(false)
-    setEditingExercise(null)
-    setExerciseForm({ type: 'walking', minutes: 30, caloriesBurned: '', notes: '' })
+      setExerciseSheetOpen(false)
+      setEditingExercise(null)
+      setExerciseForm({ type: 'walking', minutes: 30, caloriesBurned: '', notes: '' })
 
-    await Promise.all([
-      loadDateExercises(dateKey),
-      loadDailyHistory(selectedDate, restingCalories),
-    ])
+      await Promise.all([
+        loadDateExercises(dateKey),
+        loadDailyHistory(selectedDate, restingCalories),
+      ])
+    })
   }
 
   const deleteExercise = async (id) => {
-    await db.exercises.delete(id)
+    await dbDeleteExercise(id)
     await Promise.all([
       loadDateExercises(dateKey),
       loadDailyHistory(selectedDate, restingCalories),
@@ -693,38 +820,44 @@ function App() {
   }
 
   const addAiEstimateToLog = async () => {
-    await db.logs.add({
-      dateKey,
-      timestamp: Date.now(),
-      type: 'ai',
-      description: aiEstimate.description || 'AI estimate',
-      calories: Number(aiEstimate.calories) || 0,
-      protein: Number(aiEstimate.protein) || 0,
-      carbs: Number(aiEstimate.carbs) || 0,
-      fat: Number(aiEstimate.fat) || 0,
-      grams: 0,
-    })
+    await runLoadingAction('save-ai-entry', async () => {
+      await addLog({
+        dateKey,
+        timestamp: Date.now(),
+        type: 'ai',
+        description: aiEstimate.description || 'AI estimate',
+        calories: Number(aiEstimate.calories) || 0,
+        protein: Number(aiEstimate.protein) || 0,
+        carbs: Number(aiEstimate.carbs) || 0,
+        fat: Number(aiEstimate.fat) || 0,
+        grams: 0,
+      })
 
-    setAiEstimate({ description: '', calories: 0, protein: 0, carbs: 0, fat: 0 })
-    setAiDataUrl('')
-    setAiSheetOpen(false)
-    await Promise.all([loadDateLogs(dateKey), loadDailyHistory(selectedDate, restingCalories)])
+      setAiEstimate({ description: '', calories: 0, protein: 0, carbs: 0, fat: 0 })
+      setAiDataUrl('')
+      setAiSheetOpen(false)
+      await Promise.all([loadDateLogs(dateKey), loadDailyHistory(selectedDate, restingCalories)])
+    })
   }
 
   const saveGoals = async () => {
-    await saveSettings(settings)
-    alert('Settings saved on this device.')
+    await runLoadingAction('save-settings', async () => {
+      await saveSettings(settings)
+      showSnackbar('Settings saved')
+    })
   }
 
   const downloadBackup = async () => {
-    const backup = await exportAllData()
-    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `calories-backup-${new Date().toISOString().slice(0, 10)}.json`
-    link.click()
-    URL.revokeObjectURL(url)
+    await runLoadingAction('export-backup', async () => {
+      const backup = await exportAllData()
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `calories-backup-${new Date().toISOString().slice(0, 10)}.json`
+      link.click()
+      URL.revokeObjectURL(url)
+    })
   }
 
   const restoreBackup = async (event) => {
@@ -742,17 +875,272 @@ function App() {
     }
   }
 
-  const onTouchStart = (event) => setTouchStartX(event.touches[0]?.clientX || 0)
-  const onTouchEnd = (event) => {
-    const endX = event.changedTouches[0]?.clientX || 0
-    const delta = endX - touchStartX
-    if (Math.abs(delta) < 50) return
+  const updateAppNow = async () => {
+    await runLoadingAction('update-app-now', async () => {
+      if (typeof window.__caloriesForceAppUpdate !== 'function') {
+        alert('App updater is unavailable in this session.')
+        return
+      }
 
-    setSelectedDate((prev) => adjustDateByDays(prev, delta > 0 ? -1 : 1))
+      try {
+        await window.__caloriesForceAppUpdate()
+      } catch (error) {
+        alert(error.message)
+      }
+    })
+  }
+
+  const previewSeedUpdate = async () => {
+    await runLoadingAction('preview-seed-update', async () => {
+      const result = await ensureSeedData({ previewOnly: true })
+      setSeedPreview(result?.summary || null)
+    })
+  }
+
+  const applySeedUpdate = async () => {
+    await runLoadingAction('apply-seed-update', async () => {
+      const result = await ensureSeedData()
+      await Promise.all([loadFoods(), loadSeedSyncStatus()])
+
+      if (result?.summary) {
+        setSeedPreview(result.summary)
+        if (result.summary.changes > 0) {
+          alert('Food database updated successfully.')
+        } else {
+          alert('Food database is already up to date.')
+        }
+      } else {
+        alert('Food database is already up to date.')
+      }
+    })
+  }
+
+  const shouldIgnoreSwipeTarget = (target) => {
+    if (!target || typeof target.closest !== 'function') return false
+    return Boolean(target.closest('input, select, textarea, button, a, label'))
+  }
+
+  const clearSwipeTimer = () => {
+    if (!swipeTimerRef.current) return
+    window.clearTimeout(swipeTimerRef.current)
+    swipeTimerRef.current = null
+  }
+
+  const clearSwipeTransitionTimer = () => {
+    if (!swipeTransitionTimerRef.current) return
+    window.clearTimeout(swipeTransitionTimerRef.current)
+    swipeTransitionTimerRef.current = null
+  }
+
+  const commitDateSwipe = (visualDirection, finalOffset = 0) => {
+    const nextDate = adjustDateByDays(selectedDate, visualDirection > 0 ? -1 : 1)
+
+    clearSwipeTransitionTimer()
+    setSwipeTransition({
+      direction: visualDirection,
+      stage: 'prepare',
+      dragOffset: finalOffset,
+      outgoing: {
+        selectedDate,
+        dateKey,
+        logs,
+        exercises,
+        dailyHistory,
+        totals,
+        bmi,
+        restingCalories,
+        totalBurn,
+        calorieBalance,
+        projectionScenarios,
+        isDayLoading,
+      },
+    })
+
+    setSelectedDate(nextDate)
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        setSwipeTransition((prev) => (prev ? { ...prev, stage: 'animate', dragOffset: 0 } : prev))
+      })
+    })
+
+    swipeTransitionTimerRef.current = window.setTimeout(() => {
+      setSwipeTransition(null)
+      setSwipeOffsetX(0)
+      swipeTransitionTimerRef.current = null
+    }, 280)
+  }
+
+  const renderDashboardPanel = ({
+    panelSelectedDate,
+    panelDateKey,
+    panelTotals,
+    panelBmi,
+    panelRestingCalories,
+    panelTotalBurn,
+    panelCalorieBalance,
+    panelProjectionScenarios,
+    panelDailyHistory,
+    panelLogs,
+    panelExercises,
+    panelIsDayLoading,
+  }) => (
+    <div className="space-y-4">
+      <DateNavigatorCard
+        selectedDate={panelSelectedDate}
+        dateKey={panelDateKey}
+        formatDisplayDate={formatDisplayDate}
+        onDateChange={setSelectedDate}
+        onPrevDate={() => setSelectedDate((prev) => adjustDateByDays(prev, -1))}
+        onNextDate={() => setSelectedDate((prev) => adjustDateByDays(prev, 1))}
+      />
+
+      <SegmentedTabs
+        tabs={[
+          { id: 'overview', label: 'Overview' },
+          { id: 'trends', label: 'Trends' },
+          { id: 'activity', label: 'Activity' },
+        ]}
+        value={dashboardView}
+        onChange={setDashboardView}
+      />
+
+      {panelIsDayLoading && <SectionLoader />}
+
+      {!panelIsDayLoading && dashboardView === 'overview' && (
+        <DashboardOverview
+          settings={settings}
+          totals={panelTotals}
+          bmi={panelBmi}
+          restingCalories={panelRestingCalories}
+          totalBurn={panelTotalBurn}
+          calorieBalance={panelCalorieBalance}
+          macroColors={macroColors}
+          logs={panelLogs}
+          ring={<ProgressRing consumed={panelTotals.calories} goal={settings.calorieGoal} />}
+          onLogFood={(entry) => {
+            setSelectedLoggable({ type: 'food', id: String(entry.foodId) })
+            setLogQuery(entry.foodName || '')
+            setIsAutocompleteOpen(false)
+            setFoodAmount(entry.amount)
+            setFoodUnit(entry.unit || 'g')
+            setFoodSheetOpen(true)
+          }}
+        />
+      )}
+
+      {!panelIsDayLoading && dashboardView === 'trends' && (
+        <DashboardTrends projectionScenarios={panelProjectionScenarios} dailyHistory={panelDailyHistory} />
+      )}
+
+      {!panelIsDayLoading && dashboardView === 'activity' && (
+        <DashboardActivity
+          exercises={panelExercises}
+          logs={panelLogs}
+          onAddExercise={openExerciseCreate}
+          onEditExercise={openExerciseEdit}
+          onDeleteExercise={deleteExercise}
+          onEditLog={(entry) => {
+            setEditingLog(entry)
+            setEditSheetOpen(true)
+          }}
+          onDeleteLog={deleteLog}
+        />
+      )}
+    </div>
+  )
+
+  const onPointerDown = (event) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return
+    if (swipeTransition) return
+
+    clearSwipeTimer()
+
+    if (shouldIgnoreSwipeTarget(event.target)) {
+      touchGestureRef.current.active = false
+      return
+    }
+
+    if (typeof event.currentTarget.setPointerCapture === 'function') {
+      event.currentTarget.setPointerCapture(event.pointerId)
+    }
+
+    touchGestureRef.current = {
+      x: event.clientX,
+      y: event.clientY,
+      active: true,
+      pointerId: event.pointerId,
+    }
+
+    setIsSwipeDragging(true)
+    setSwipeOffsetX(0)
+  }
+
+  const onPointerMove = (event) => {
+    if (!touchGestureRef.current.active) return
+    if (touchGestureRef.current.pointerId !== event.pointerId) return
+
+    const deltaX = event.clientX - touchGestureRef.current.x
+    const deltaY = event.clientY - touchGestureRef.current.y
+
+    if (Math.abs(deltaX) <= Math.abs(deltaY) * 1.1) return
+
+    const clamped = Math.max(-88, Math.min(88, deltaX))
+    setSwipeOffsetX(clamped)
+  }
+
+  const onPointerUp = (event) => {
+    if (!touchGestureRef.current.active) return
+    if (touchGestureRef.current.pointerId !== event.pointerId) return
+
+    const deltaX = event.clientX - touchGestureRef.current.x
+    const deltaY = event.clientY - touchGestureRef.current.y
+
+    touchGestureRef.current.active = false
+    touchGestureRef.current.pointerId = null
+    setIsSwipeDragging(false)
+
+    // Require a mostly-horizontal swipe to avoid vertical-scroll conflicts.
+    if (Math.abs(deltaX) < 60 || Math.abs(deltaX) <= Math.abs(deltaY) * 1.2) {
+      setSwipeOffsetX(0)
+      return
+    }
+
+    const visualDirection = deltaX > 0 ? 1 : -1
+    commitDateSwipe(visualDirection, swipeOffsetX)
+  }
+
+  const onPointerCancel = () => {
+    touchGestureRef.current.active = false
+    touchGestureRef.current.pointerId = null
+    setIsSwipeDragging(false)
+    setSwipeOffsetX(0)
+  }
+
+  // Show nothing while auth state is still loading
+  if (!authReady) {
+    return null
+  }
+
+  // Show the login page when not signed in
+  if (!firebaseUser) {
+    return <LoginPage />
   }
 
   if (!settings) {
-    return <main className="grid min-h-screen place-items-center">Loading...</main>
+    return (
+      <main className="phone-shell pb-24">
+        <header className="px-4 pb-3 pt-5">
+          <div className="h-7 w-40 rounded-xl bg-[#d9e8dd] skeleton-block"></div>
+          <div className="mt-2 h-4 w-64 rounded-xl bg-[#e2efe6] skeleton-block"></div>
+        </header>
+        <section className="space-y-4 px-4">
+          <SectionLoader />
+          <SectionLoader />
+          <SectionLoader />
+        </section>
+      </main>
+    )
   }
 
   return (
@@ -762,437 +1150,134 @@ function App() {
         <p className="text-sm text-[#4c695b]">Offline-first nutrition tracking for your phone.</p>
       </header>
 
-      <section className="px-4" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+      <section className="px-4">
         {activeTab === 'dashboard' && (
-          <div className="space-y-4">
-            <div className="card flex items-center justify-between">
-              <button className="btn-muted" onClick={() => setSelectedDate((prev) => adjustDateByDays(prev, -1))}>
-                Previous
-              </button>
-              <div className="text-center">
-                <p className="font-['Sora'] text-base font-semibold text-[#184034]">{formatDisplayDate(selectedDate)}</p>
-                <input
-                  type="date"
-                  className="input mt-1 !w-[150px]"
-                  value={dateKey}
-                  onChange={(event) => setSelectedDate(new Date(`${event.target.value}T12:00:00`))}
-                />
-              </div>
-              <button className="btn-muted" onClick={() => setSelectedDate((prev) => adjustDateByDays(prev, 1))}>
-                Next
-              </button>
-            </div>
-
-            <div className="card flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[#4a6658]">Goal</p>
-                <p className="font-['Sora'] text-xl font-bold text-[#163d31]">{settings.calorieGoal} kcal</p>
-                <p className="text-xs text-[#4a6658]">Swipe left or right to move between days</p>
-              </div>
-              <ProgressRing consumed={totals.calories} goal={settings.calorieGoal} />
-            </div>
-
-            <div className="card grid grid-cols-2 gap-3">
-              <div className="rounded-2xl bg-[#f4faf6] p-3">
-                <p className="text-xs uppercase tracking-wide text-[#5a7769]">BMI</p>
-                <p className="font-['Sora'] text-xl font-bold text-[#194436]">{bmi || '-'}</p>
-              </div>
-              <div className="rounded-2xl bg-[#f4faf6] p-3">
-                <p className="text-xs uppercase tracking-wide text-[#5a7769]">Rest Burn</p>
-                <p className="font-['Sora'] text-xl font-bold text-[#194436]">{restingCalories ? `${restingCalories} kcal` : '-'}</p>
-              </div>
-            </div>
-
-            <div className="card space-y-3">
-              <h2 className="font-['Sora'] text-base font-semibold text-[#1c4437]">Daily Energy Balance</h2>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div className="rounded-2xl bg-[#f4faf6] p-3">
-                  <p className="text-[#5a7769]">Consumed</p>
-                  <p className="font-semibold text-[#22493d]">{Math.round(totals.calories)} kcal</p>
-                </div>
-                <div className="rounded-2xl bg-[#f4faf6] p-3">
-                  <p className="text-[#5a7769]">Burned (Rest + Exercise)</p>
-                  <p className="font-semibold text-[#22493d]">{Math.round(totalBurn)} kcal</p>
-                </div>
-              </div>
-              <div
-                className={`rounded-2xl border p-3 text-sm font-semibold ${
-                  calorieBalance >= 0 ? 'border-[#bde7ce] bg-[#ecfbf2] text-[#1f6f4b]' : 'border-[#f3d0cd] bg-[#fff1ef] text-[#9f3c33]'
-                }`}
-              >
-                {calorieBalance >= 0
-                  ? `Deficit ${Math.round(calorieBalance)} kcal (burned more than consumed)`
-                  : `Surplus ${Math.abs(Math.round(calorieBalance))} kcal (consumed more than burned)`}
-              </div>
-            </div>
-
-            <div className="card space-y-3">
-              <h2 className="font-['Sora'] text-base font-semibold text-[#1c4437]">Weight Trajectory</h2>
-              {projectionScenarios.length === 0 && (
-                <p className="text-sm text-[#577064]">Add weight, height and age in settings to calculate projections.</p>
-              )}
-              {projectionScenarios.map((scenario) => (
-                <div key={scenario.intake} className="rounded-2xl border border-[#dde6dc] bg-[#fbfdf9] p-3 text-sm text-[#36584a]">
-                  <p className="font-semibold text-[#1f4739]">At {scenario.intake} kcal/day</p>
-                  <p className="text-xs text-[#5b7569]">Daily balance: {scenario.deltaPerDay >= 0 ? '+' : ''}{Math.round(scenario.deltaPerDay)} kcal</p>
-                  <p>30 days: {scenario.in30} kg</p>
-                  <p>90 days: {scenario.in90} kg</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="card">
-              <h2 className="mb-3 font-['Sora'] text-base font-semibold text-[#1c4437]">Last 10 Days</h2>
-              <div className="space-y-2">
-                {dailyHistory.map((day) => (
-                  <div key={day.dateKey} className="flex items-center justify-between rounded-2xl bg-[#f7fbf6] p-2 text-sm">
-                    <span className="font-semibold text-[#2b5444]">{day.dateKey}</span>
-                    <span className="text-[#45685a]">{Math.round(day.consumed)} / {Math.round(day.burned)} kcal</span>
-                    <span className={`rounded-full px-2 py-1 text-xs font-semibold ${day.balance >= 0 ? 'bg-[#dcf6e7] text-[#1e6d49]' : 'bg-[#ffe1dd] text-[#994238]'}`}>
-                      {day.balance >= 0 ? `-${Math.round(day.balance)}` : `+${Math.abs(Math.round(day.balance))}`}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="card space-y-3">
-              {[
-                { key: 'protein', label: 'Protein', total: totals.protein, goal: settings.proteinGoal },
-                { key: 'carbs', label: 'Carbs', total: totals.carbs, goal: settings.carbsGoal },
-                { key: 'fat', label: 'Fat', total: totals.fat, goal: settings.fatGoal },
-              ].map((macro) => {
-                const progress = Math.min((macro.total || 0) / (macro.goal || 1), 1)
-                return (
-                  <div key={macro.key}>
-                    <div className="mb-1 flex items-center justify-between text-sm">
-                      <p className="font-semibold text-[#224a3d]">{macro.label}</p>
-                      <p className="text-[#446253]">
-                        {macro.total.toFixed(1)}g / {macro.goal}g
-                      </p>
-                    </div>
-                    <div className="h-2.5 overflow-hidden rounded-full bg-[#dce8dd]">
-                      <div className={`h-full rounded-full ${macroColors[macro.key]}`} style={{ width: `${progress * 100}%` }}></div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-
-            <div className="card">
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="font-['Sora'] text-base font-semibold text-[#1c4437]">Exercise</h2>
-                <button className="btn-primary" onClick={openExerciseCreate}>
-                  <FaPlus className="mr-2" /> Add Exercise
-                </button>
-              </div>
-              {exercises.length === 0 && <p className="text-sm text-[#577064]">No exercise entries for this day.</p>}
-              <div className="space-y-2">
-                {exercises.map((entry) => (
-                  <article key={entry.id} className="rounded-2xl border border-[#dde6dc] bg-[#fbfdf9] p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div>
-                        <p className="font-semibold text-[#21453a]">{entry.description || entry.type}</p>
-                        <p className="text-xs text-[#5b7569]">{entry.minutes} min • {Math.round(entry.caloriesBurned)} kcal burned</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button className="btn-muted !rounded-full !p-2" onClick={() => openExerciseEdit(entry)} aria-label="Edit exercise">
-                          <FaPen />
-                        </button>
-                        <button className="btn-muted !rounded-full !p-2" onClick={() => deleteExercise(entry.id)} aria-label="Delete exercise">
-                          <FaTrash />
-                        </button>
-                      </div>
-                    </div>
-                    {entry.notes && <p className="mt-2 text-sm text-[#355648]">{entry.notes}</p>}
-                  </article>
-                ))}
-              </div>
-            </div>
-
-            <div className="card">
-              <h2 className="mb-3 font-['Sora'] text-base font-semibold text-[#1c4437]">Daily Timeline</h2>
-              <div className="space-y-2">
-                {logs.length === 0 && <p className="text-sm text-[#577064]">No entries for this day yet.</p>}
-                {logs.map((entry) => (
-                  <article key={entry.id} className="rounded-2xl border border-[#dde6dc] bg-[#fbfdf9] p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="text-left">
-                        <p className="font-semibold text-[#21453a]">{entry.description || 'Entry'}</p>
-                        <p className="text-xs text-[#5b7569]">{new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          className="btn-muted !rounded-full !p-2"
-                          onClick={() => {
-                            setEditingLog(entry)
-                            setEditSheetOpen(true)
-                          }}
-                          aria-label="Edit entry"
-                        >
-                          <FaPen />
-                        </button>
-                        <button className="btn-muted !rounded-full !p-2" onClick={() => deleteLog(entry.id)} aria-label="Delete entry">
-                          <FaTrash />
-                        </button>
-                      </div>
-                    </div>
-                    <p className="mt-2 text-sm text-[#355648]">
-                      {Math.round(entry.calories)} kcal | P {entry.protein} | C {entry.carbs} | F {entry.fat}
-                    </p>
-                  </article>
-                ))}
-              </div>
-            </div>
-          </div>
+          <DashboardPage
+            selectedDate={selectedDate}
+            dateKey={dateKey}
+            dashboardView={dashboardView}
+            setDashboardView={setDashboardView}
+            totals={totals}
+            bmi={bmi}
+            restingCalories={restingCalories}
+            totalBurn={totalBurn}
+            calorieBalance={calorieBalance}
+            projectionScenarios={projectionScenarios}
+            dailyHistory={dailyHistory}
+            logs={logs}
+            exercises={exercises}
+            isDayLoading={isDayLoading}
+            settings={settings}
+            macroColors={macroColors}
+            onDateChange={setSelectedDate}
+            onEditLog={(entry) => {
+              setEditingLog({ ...entry })
+              setEditSheetOpen(true)
+            }}
+            onDeleteLog={deleteLog}
+            onAddExercise={openExerciseCreate}
+            onEditExercise={openExerciseEdit}
+            onDeleteExercise={deleteExercise}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerCancel={onPointerCancel}
+            swipeOffsetX={swipeOffsetX}
+            isSwipeDragging={isSwipeDragging}
+            swipeTransition={swipeTransition}
+            renderDashboardPanel={renderDashboardPanel}
+          />
         )}
 
         {activeTab === 'log' && (
-          <div className="space-y-4">
-            <div className="card space-y-3">
-              <h2 className="font-['Sora'] text-lg font-semibold text-[#1f4739]">Log Food</h2>
-              <button
-                className="btn-primary w-full"
-                onClick={() => {
-                  setFoodSheetOpen(true)
-                  setIsAutocompleteOpen(true)
-                }}
-              >
-                Search foods and meals
-              </button>
-              <button className="btn-muted w-full" onClick={() => setCustomFoodSheetOpen(true)}>
-                Add custom food
-              </button>
-            </div>
-
-            <div className="card space-y-3">
-              <h2 className="font-['Sora'] text-lg font-semibold text-[#1f4739]">Latest Added</h2>
-              {recentLogEntries.length === 0 && <p className="text-sm text-[#5b7569]">Your recent foods and meals will appear here.</p>}
-              <div className="flex flex-wrap gap-2">
-                {recentLogEntries.map((entry) => (
-                  <button
-                    key={entry.key}
-                    className="btn-muted !rounded-full !px-3 !py-2 text-xs"
-                    onClick={() => quickAddRecent(entry)}
-                  >
-                    {entry.type === 'meal' ? 'Meal: ' : ''}
-                    {entry.label}
-                    {entry.type === 'food' ? ` (${entry.amount} ${entry.unit})` : ''}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="card space-y-3">
-              <h2 className="font-['Sora'] text-lg font-semibold text-[#1f4739]">Calculate from Picture</h2>
-              <p className="text-sm text-[#5b7569]">Take or upload a food photo, estimate macros, then edit before logging.</p>
-              <button className="btn-primary w-full" onClick={() => setAiSheetOpen(true)}>
-                <FaCamera className="mr-2" /> Open AI Estimator
-              </button>
-            </div>
-
-            <div className="card space-y-3">
-              <h2 className="font-['Sora'] text-lg font-semibold text-[#1f4739]">Log Exercise</h2>
-              <p className="text-sm text-[#5b7569]">Track activity minutes and add calories burned to your day.</p>
-              <button className="btn-primary w-full" onClick={openExerciseCreate}>
-                <FaPlus className="mr-2" /> Add Exercise
-              </button>
-            </div>
-          </div>
+          <LogPage
+            logView={logView}
+            setLogView={setLogView}
+            recentLogEntries={recentLogEntries}
+            isActionLoading={isActionLoading}
+            onSetFoodSheetOpen={(open) => {
+              setFoodSheetOpen(open)
+              if (open) setIsAutocompleteOpen(true)
+            }}
+            onSetCustomFoodSheetOpen={setCustomFoodSheetOpen}
+            onSetAiSheetOpen={setAiSheetOpen}
+            onOpenExerciseCreate={openExerciseCreate}
+            quickAddRecent={quickAddRecent}
+            onPreSelectEntry={(entry) => {
+              if (entry.type === 'food') {
+                setSelectedLoggable({ type: 'food', id: String(entry.foodId) })
+                setLogQuery(entry.label)
+                setFoodAmount(entry.amount)
+                setFoodUnit(entry.unit || 'g')
+              } else {
+                setSelectedLoggable({ type: 'meal', id: String(entry.mealId) })
+                setLogQuery(entry.label)
+                setFoodAmount(1)
+              }
+              setIsAutocompleteOpen(false)
+              setFoodSheetOpen(true)
+            }}
+          />
         )}
 
         {activeTab === 'meals' && (
-          <div className="space-y-4">
-            <div className="card flex items-center justify-between">
-              <h2 className="font-['Sora'] text-lg font-semibold text-[#1f4739]">Saved Meals</h2>
-              <button className="btn-primary" onClick={openCreateMeal}>
-                <FaPlus className="mr-2" /> New Meal
-              </button>
-            </div>
-
-            {meals.length === 0 && <div className="card text-sm text-[#5b7569]">No meals yet. Build your first combo.</div>}
-
-            {meals.map((meal) => (
-              <div key={meal.id} className="card">
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <p className="font-['Sora'] text-base font-semibold text-[#204638]">{meal.name}</p>
-                    <p className="text-sm text-[#5d766a]">
-                      {Math.round(meal.totals?.calories || 0)} kcal | P {Number(meal.totals?.protein || 0).toFixed(1)} | C{' '}
-                      {Number(meal.totals?.carbs || 0).toFixed(1)} | F {Number(meal.totals?.fat || 0).toFixed(1)}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button className="btn-muted" onClick={() => openEditMeal(meal)}>
-                      <FaPen className="mr-2" /> Edit
-                    </button>
-                    <button className="btn-muted" onClick={() => deleteMeal(meal.id)}>
-                      <FaTrash className="mr-2" /> Delete
-                    </button>
-                    <button className="btn-primary" onClick={() => logMeal(meal)}>
-                      Log
-                    </button>
-                  </div>
-                </div>
-                <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-[#4b6458]">
-                  {meal.items?.map((item, index) => (
-                    <li key={`${meal.id}-${index}`}>
-                      {item.foodName}: {item.amount} {item.unit}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
+          <MealsPage
+            meals={meals}
+            isActionLoading={isActionLoading}
+            onOpenCreateMeal={openCreateMeal}
+            onOpenEditMeal={openEditMeal}
+            onDeleteMeal={deleteMeal}
+            onLogMeal={logMeal}
+          />
         )}
 
         {activeTab === 'settings' && (
-          <div className="space-y-4">
-            <div className="card space-y-3">
-              <h2 className="font-['Sora'] text-lg font-semibold text-[#1f4739]">Daily Goals</h2>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  ['calorieGoal', 'Calories'],
-                  ['proteinGoal', 'Protein'],
-                  ['carbsGoal', 'Carbs'],
-                  ['fatGoal', 'Fat'],
-                ].map(([key, label]) => (
-                  <label key={key} className="text-sm text-[#3d5f51]">
-                    {label}
-                    <input
-                      type="number"
-                      className="input mt-1"
-                      value={settings[key]}
-                      onChange={(event) => setSettings((prev) => ({ ...prev, [key]: Number(event.target.value) || 0 }))}
-                    />
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="card space-y-3">
-              <h2 className="font-['Sora'] text-lg font-semibold text-[#1f4739]">Body Metrics (Optional)</h2>
-              <div className="grid grid-cols-2 gap-2">
-                <label className="text-sm text-[#3d5f51]">
-                  Weight (kg)
-                  <input
-                    type="number"
-                    step="0.1"
-                    className="input mt-1"
-                    value={settings.weightKg}
-                    onChange={(event) => setSettings((prev) => ({ ...prev, weightKg: Number(event.target.value) || 0 }))}
-                  />
-                </label>
-                <label className="text-sm text-[#3d5f51]">
-                  Height (cm)
-                  <input
-                    type="number"
-                    className="input mt-1"
-                    value={settings.heightCm}
-                    onChange={(event) => setSettings((prev) => ({ ...prev, heightCm: Number(event.target.value) || 0 }))}
-                  />
-                </label>
-                <label className="text-sm text-[#3d5f51]">
-                  Age
-                  <input
-                    type="number"
-                    className="input mt-1"
-                    value={settings.ageYears}
-                    onChange={(event) => setSettings((prev) => ({ ...prev, ageYears: Number(event.target.value) || 0 }))}
-                  />
-                </label>
-                <label className="text-sm text-[#3d5f51]">
-                  Sex
-                  <select className="input mt-1" value={settings.sex} onChange={(event) => setSettings((prev) => ({ ...prev, sex: event.target.value }))}>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                  </select>
-                </label>
-              </div>
-              <div className="rounded-2xl bg-[#f4faf6] p-3 text-sm text-[#36584a]">
-                <p>BMI: {bmi || '-'}</p>
-                <p>Resting calories/day: {restingCalories || '-'}</p>
-              </div>
-              <label className="text-sm text-[#3d5f51]">
-                Projection intake (kcal/day)
-                <input
-                  type="number"
-                  className="input mt-1"
-                  value={settings.projectionIntakeCalories}
-                  onChange={(event) =>
-                    setSettings((prev) => ({ ...prev, projectionIntakeCalories: Number(event.target.value) || 0 }))
-                  }
-                />
-              </label>
-            </div>
-
-            <div className="card space-y-3">
-              <h2 className="font-['Sora'] text-lg font-semibold text-[#1f4739]">AI Provider</h2>
-              <select
-                className="input"
-                value={settings.aiProvider}
-                onChange={(event) => setSettings((prev) => ({ ...prev, aiProvider: event.target.value }))}
-              >
-                <option value="openai">OpenAI</option>
-                <option value="gemini">Google Gemini</option>
-              </select>
-
-              <label className="text-sm text-[#3d5f51]">
-                OpenAI API key
-                <input
-                  type="password"
-                  className="input mt-1"
-                  value={settings.openAiApiKey}
-                  onChange={(event) => setSettings((prev) => ({ ...prev, openAiApiKey: event.target.value.trim() }))}
-                />
-              </label>
-
-              <label className="text-sm text-[#3d5f51]">
-                OpenAI model
-                <input
-                  className="input mt-1"
-                  value={settings.openAiModel}
-                  onChange={(event) => setSettings((prev) => ({ ...prev, openAiModel: event.target.value.trim() }))}
-                />
-              </label>
-
-              <label className="text-sm text-[#3d5f51]">
-                Gemini API key
-                <input
-                  type="password"
-                  className="input mt-1"
-                  value={settings.geminiApiKey}
-                  onChange={(event) => setSettings((prev) => ({ ...prev, geminiApiKey: event.target.value.trim() }))}
-                />
-              </label>
-
-              <label className="text-sm text-[#3d5f51]">
-                Gemini model
-                <input
-                  className="input mt-1"
-                  value={settings.geminiModel}
-                  onChange={(event) => setSettings((prev) => ({ ...prev, geminiModel: event.target.value.trim() }))}
-                />
-              </label>
-
-              <button className="btn-primary w-full" onClick={saveGoals}>
-                Save settings
-              </button>
-            </div>
-
-            <div className="card space-y-3">
-              <h2 className="font-['Sora'] text-lg font-semibold text-[#1f4739]">Backup & Restore</h2>
-              <button className="btn-primary w-full" onClick={downloadBackup}>
-                Export data JSON
-              </button>
-              <label className="btn-muted w-full cursor-pointer text-center">
-                Import backup JSON
-                <input type="file" accept="application/json" className="hidden" onChange={restoreBackup} />
-              </label>
-            </div>
-          </div>
+          <SettingsPage
+            settingsView={settingsView}
+            setSettingsView={setSettingsView}
+            settings={settings}
+            setSettings={setSettings}
+            bmi={bmi}
+            restingCalories={restingCalories}
+            seedStatus={seedStatus}
+            isUpdateAvailable={isUpdateAvailable}
+            isActionLoading={isActionLoading}
+            formatDateTime={formatDateTime}
+            seedPreview={seedPreview}
+            onPreviewSeedUpdate={previewSeedUpdate}
+            onApplySeedUpdate={applySeedUpdate}
+            onUpdateAppNow={updateAppNow}
+            onSaveSettings={saveGoals}
+            onDownloadBackup={downloadBackup}
+            onRestoreBackup={restoreBackup}
+          />
         )}
       </section>
+
+      {firebaseUser && (
+        <button
+          className="fixed right-4 top-4 z-40 rounded-full bg-[#dbf1e5] px-3 py-1 text-xs font-semibold text-[#16543c]"
+          onClick={handleLogout}
+        >
+          Sign out
+        </button>
+      )}
+
+      {!foodSheetOpen && activeTab !== 'settings' && (
+        <button
+          className="fab-log-food"
+          onClick={() => {
+            setFoodSheetOpen(true)
+            setIsAutocompleteOpen(true)
+          }}
+          aria-label="Log food"
+        >
+          <FaPlus />
+          <span>Log Food</span>
+        </button>
+      )}
+
+      <Snackbar />
 
       <nav className="fixed bottom-0 left-1/2 z-30 flex w-full max-w-md -translate-x-1/2 justify-around border-t border-[#d9e3d8] bg-[#f5f9f2] px-2 py-2">
         {[
@@ -1214,32 +1299,35 @@ function App() {
         ))}
       </nav>
 
-      <BottomSheet open={foodSheetOpen} title="Log Food" onClose={() => setFoodSheetOpen(false)}>
+      <TopSheet open={foodSheetOpen} title="Log Food" onClose={() => setFoodSheetOpen(false)}>
         <div className="space-y-3">
-          <input
-            className="input"
-            placeholder="Type a food or meal"
-            value={logQuery}
-            onFocus={() => setIsAutocompleteOpen(true)}
-            onChange={(event) => {
-              setLogQuery(event.target.value)
-              setSelectedLoggable(null)
-              setIsAutocompleteOpen(true)
-            }}
-          />
+          <div className="rounded-2xl border border-[#d9e7da] bg-white p-2">
+            <input
+              ref={logSearchInputRef}
+              className="input !border-0 !bg-transparent !px-1 !py-2 !ring-0"
+              placeholder="Search food or meal"
+              value={logQuery}
+              onFocus={() => setIsAutocompleteOpen(true)}
+              onChange={(event) => {
+                setLogQuery(event.target.value)
+                setSelectedLoggable(null)
+                setIsAutocompleteOpen(true)
+              }}
+            />
+          </div>
 
           {isAutocompleteOpen && (
-            <div className="max-h-64 overflow-y-auto rounded-2xl border border-[#dbe7dc] bg-white p-1">
+            <div className="max-h-[42vh] overflow-y-auto rounded-2xl border border-[#dbe7dc] bg-white p-2">
               {autocompleteResults.length === 0 && <p className="px-3 py-2 text-sm text-[#5c776a]">No matching food or meal.</p>}
               {autocompleteResults.map((row) => (
                 <button
                   key={`${row.type}-${row.id}`}
-                  className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm hover:bg-[#edf6ee]"
+                  className="mb-1 flex w-full items-center justify-between rounded-xl border border-transparent px-3 py-2 text-left text-sm hover:border-[#dce8dd] hover:bg-[#eff7f0]"
                   onClick={() => selectAutocompleteResult(row)}
                 >
                   <span className="text-[#1f4739]">{row.label}</span>
                   <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
                       row.type === 'meal' ? 'bg-[#e7edf8] text-[#284d89]' : 'bg-[#e4f4e9] text-[#196342]'
                     }`}
                   >
@@ -1261,7 +1349,7 @@ function App() {
           )}
 
           {selectedLoggable?.type === 'food' && (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2 rounded-2xl border border-[#dce7dc] bg-[#f8fcf9] p-3">
               <label className="text-sm text-[#3d5f51]">
                 Amount
                 <input
@@ -1295,11 +1383,11 @@ function App() {
             </div>
           )}
 
-          <button className="btn-primary w-full" onClick={saveFoodLog}>
+          <LoadingButton className="btn-primary w-full" onClick={saveFoodLog} loading={isActionLoading('save-food-log')}>
             {selectedLoggable?.type === 'meal' ? 'Add meal to day' : 'Add to day'}
-          </button>
+          </LoadingButton>
         </div>
-      </BottomSheet>
+      </TopSheet>
 
       <BottomSheet open={customFoodSheetOpen} title="Custom Food" onClose={() => setCustomFoodSheetOpen(false)}>
         <div className="space-y-3">
@@ -1345,18 +1433,21 @@ function App() {
               </label>
             ))}
           </div>
-          <button className="btn-primary w-full" onClick={saveCustomFood}>
+          <LoadingButton className="btn-primary w-full" onClick={saveCustomFood} loading={isActionLoading('save-custom-food')}>
             Save food
-          </button>
+          </LoadingButton>
         </div>
       </BottomSheet>
 
-      <BottomSheet
+      <TopSheet
         open={mealSheetOpen}
         title={editingMealId ? 'Edit Meal' : 'Create Meal'}
         onClose={() => {
           setMealSheetOpen(false)
           setEditingMealId(null)
+          setMealFoodQuery('')
+          setMealFoodAutocompleteOpen(false)
+          setMealItemBeingEdited(null)
         }}
       >
         <div className="space-y-3">
@@ -1364,52 +1455,94 @@ function App() {
           {mealItems.map((item, index) => {
             const itemFood = foods.find((food) => String(food.id) === item.foodId)
             const units = getFoodUnits(itemFood)
+            const isEditing = mealItemBeingEdited === index
             return (
               <div key={index} className="rounded-2xl border border-[#dbe6dc] bg-white p-3">
                 <div className="grid grid-cols-1 gap-2">
-                  <select
-                    className="input"
-                    value={item.foodId}
-                    onChange={(event) => {
-                      const food = foods.find((row) => String(row.id) === event.target.value)
-                      setMealItems((prev) =>
-                        prev.map((row, rowIndex) =>
-                          rowIndex === index ? { ...row, foodId: event.target.value, unit: food?.servings?.[0]?.label || 'g' } : row,
-                        ),
-                      )
-                    }}
-                  >
-                    <option value="">Choose food</option>
-                    {foods.map((food) => (
-                      <option key={food.id} value={food.id}>
-                        {food.name}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      type="number"
-                      step="0.1"
-                      className="input"
-                      value={item.amount}
-                      onChange={(event) =>
-                        setMealItems((prev) => prev.map((row, rowIndex) => (rowIndex === index ? { ...row, amount: event.target.value } : row)))
-                      }
-                    />
-                    <select
-                      className="input"
-                      value={item.unit}
-                      onChange={(event) =>
-                        setMealItems((prev) => prev.map((row, rowIndex) => (rowIndex === index ? { ...row, unit: event.target.value } : row)))
-                      }
+                  {isEditing ? (
+                    <>
+                      <div className="rounded-2xl border border-[#d9e7da] bg-white p-2">
+                        <input
+                          ref={mealSearchInputRef}
+                          className="input !border-0 !bg-transparent !px-1 !py-2 !ring-0"
+                          placeholder="Search food"
+                          value={mealFoodQuery}
+                          onFocus={() => setMealFoodAutocompleteOpen(true)}
+                          onChange={(event) => {
+                            setMealFoodQuery(event.target.value)
+                            setMealFoodAutocompleteOpen(true)
+                          }}
+                        />
+                      </div>
+                      {mealFoodAutocompleteOpen && (
+                        <div className="max-h-40 overflow-y-auto rounded-2xl border border-[#dbe7dc] bg-white p-2">
+                          {mealFoodAutocompleteResults.length === 0 && <p className="px-3 py-2 text-sm text-[#5c776a]">No matching food.</p>}
+                          {mealFoodAutocompleteResults.map((row) => (
+                            <button
+                              key={`${row.type}-${row.id}`}
+                              className="mb-1 flex w-full items-center justify-between rounded-xl border border-transparent px-3 py-2 text-left text-sm hover:border-[#dce8dd] hover:bg-[#eff7f0]"
+                              onClick={() => {
+                                const food = foods.find((f) => String(f.id) === String(row.id))
+                                setMealItems((prev) =>
+                                  prev.map((mItem, idx) =>
+                                    idx === index ? { ...mItem, foodId: String(row.id), unit: food?.servings?.[0]?.label || 'g' } : mItem,
+                                  ),
+                                )
+                                setMealFoodQuery('')
+                                setMealFoodAutocompleteOpen(false)
+                                setMealItemBeingEdited(null)
+                              }}
+                            >
+                              <span className="text-[#1f4739]">{row.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <button
+                      className="flex items-center justify-between rounded-xl border border-[#d9e7da] bg-[#f8fdf9] px-3 py-2 text-left text-sm font-semibold text-[#1f4739]"
+                      onClick={() => {
+                        setMealItemBeingEdited(index)
+                        setMealFoodQuery(itemFood?.name || '')
+                        setMealFoodAutocompleteOpen(false)
+                        setTimeout(() => {
+                          if (mealSearchInputRef.current) {
+                            mealSearchInputRef.current.focus()
+                          }
+                        }, 50)
+                      }}
                     >
-                      {units.map((unit) => (
-                        <option key={unit.label} value={unit.label}>
-                          {unit.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                      <span>{itemFood?.name || 'Choose food'}</span>
+                      <span className="text-xs text-[#5a8f81]">({item.amount} {item.unit})</span>
+                    </button>
+                  )}
+                  {!isEditing && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="number"
+                        step="0.1"
+                        className="input"
+                        value={item.amount}
+                        onChange={(event) =>
+                          setMealItems((prev) => prev.map((row, rowIndex) => (rowIndex === index ? { ...row, amount: event.target.value } : row)))
+                        }
+                      />
+                      <select
+                        className="input"
+                        value={item.unit}
+                        onChange={(event) =>
+                          setMealItems((prev) => prev.map((row, rowIndex) => (rowIndex === index ? { ...row, unit: event.target.value } : row)))
+                        }
+                      >
+                        {units.map((unit) => (
+                          <option key={unit.label} value={unit.label}>
+                            {unit.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
                 {mealItems.length > 1 && (
                   <button
@@ -1425,11 +1558,11 @@ function App() {
           <button className="btn-muted w-full" onClick={() => setMealItems((prev) => [...prev, createEmptyMealItem()])}>
             Add another food
           </button>
-          <button className="btn-primary w-full" onClick={saveMeal}>
+          <LoadingButton className="btn-primary w-full" onClick={saveMeal} loading={isActionLoading('save-meal')}>
             {editingMealId ? 'Save meal changes' : 'Save meal'}
-          </button>
+          </LoadingButton>
         </div>
-      </BottomSheet>
+      </TopSheet>
 
       <BottomSheet open={aiSheetOpen} title="AI Food Estimate" onClose={() => setAiSheetOpen(false)}>
         <div className="space-y-3">
@@ -1438,9 +1571,9 @@ function App() {
             <input type="file" accept="image/*" capture="environment" className="hidden" onChange={onAiFileChange} />
           </label>
           {aiDataUrl && <img src={aiDataUrl} className="max-h-44 w-full rounded-2xl object-cover" alt="Meal preview" />}
-          <button className="btn-primary w-full" onClick={runAiEstimate} disabled={aiLoading || !aiDataUrl}>
+          <LoadingButton className="btn-primary w-full" onClick={runAiEstimate} loading={aiLoading} disabled={!aiDataUrl}>
             {aiLoading ? 'Estimating...' : 'Estimate macros'}
-          </button>
+          </LoadingButton>
 
           <label className="text-sm text-[#3d5f51]">
             Description
@@ -1469,9 +1602,9 @@ function App() {
               </label>
             ))}
           </div>
-          <button className="btn-primary w-full" onClick={addAiEstimateToLog}>
+          <LoadingButton className="btn-primary w-full" onClick={addAiEstimateToLog} loading={isActionLoading('save-ai-entry')}>
             Add estimate to day
-          </button>
+          </LoadingButton>
         </div>
       </BottomSheet>
 
@@ -1526,9 +1659,9 @@ function App() {
             Estimated burn: {estimatedExerciseBurn || 0} kcal
           </div>
 
-          <button className="btn-primary w-full" onClick={saveExercise}>
+          <LoadingButton className="btn-primary w-full" onClick={saveExercise} loading={isActionLoading('save-exercise')}>
             {editingExercise ? 'Save exercise changes' : 'Add exercise'}
-          </button>
+          </LoadingButton>
         </div>
       </BottomSheet>
 
@@ -1558,9 +1691,9 @@ function App() {
                 </label>
               ))}
             </div>
-            <button className="btn-primary w-full" onClick={saveEditedLog}>
+            <LoadingButton className="btn-primary w-full" onClick={saveEditedLog} loading={isActionLoading('save-edited-log')}>
               Save changes
-            </button>
+            </LoadingButton>
           </div>
         )}
       </BottomSheet>
